@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "axios": "^0.21.0",
+    "date-fns": "^2.16.1",
     "puppeteer": "^5.4.1"
   }
 }
