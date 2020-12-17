@@ -3,7 +3,7 @@
     "incremental": true,
     "target": "es2020",
     "module": "commonjs",
-    "lib": ["es2020"],
+    "lib": ["es2020", "DOM"],
 
     "strict": true,
     "noImplicitReturns": true /* Report error when not all code paths in function return a value. */,
