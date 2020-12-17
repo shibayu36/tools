@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import axios from "axios";
 import { parse, parseISO, isBefore } from "date-fns";
+import { sumBy, sortBy } from "lodash";
 import puppeteer from "puppeteer";
 
 const start = parseISO("2020-07-01T00:00:00+09:00");
@@ -14,7 +15,12 @@ async function main(): Promise<void> {
   ]
     .flat()
     .filter((a) => isBefore(start, a.date) && isBefore(a.date, end));
-  console.log(articles);
+
+  console.log("総記事数:", articles.length);
+  console.log("総ブックマーク数:" + sumBy(articles, "bookmark"));
+  for (const a of sortBy(articles, [(a) => -a.bookmark])) {
+    console.log(`[${a.title} ${a.url}]`, a.bookmark);
+  }
 
   await browser.close();
 }

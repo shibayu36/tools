@@ -22,6 +22,7 @@
   "private": true,
   "devDependencies": {
     "@types/jest": "^26.0.19",
+    "@types/lodash": "^4.14.165",
     "@types/node": "^14.14.14",
     "@types/puppeteer": "^5.4.2",
     "@typescript-eslint/eslint-plugin": "^4.9.1",
@@ -41,6 +42,7 @@
   "dependencies": {
     "axios": "^0.21.0",
     "date-fns": "^2.16.1",
+    "lodash": "^4.17.20",
     "puppeteer": "^5.4.1"
   }
 }
