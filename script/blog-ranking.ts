@@ -1,11 +1,19 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import axios from "axios";
-import { parse } from "date-fns";
+import { parse, parseISO, isBefore } from "date-fns";
 import puppeteer from "puppeteer";
+
+const start = parseISO("2020-07-01T00:00:00+09:00");
+const end = parseISO("2021-01-01T00:00:00+09:00");
 
 async function main(): Promise<void> {
   const browser = await puppeteer.launch();
-  const articles = await fetchArticles(browser, "https://blog.shibayu36.org/archive/category/tech");
+  const articles = [
+    await fetchArticles(browser, "https://blog.shibayu36.org/archive/category/tech"),
+    await fetchArticles(browser, "https://blog.shibayu36.org/archive/category/tech?page=2"),
+  ]
+    .flat()
+    .filter((a) => isBefore(start, a.date) && isBefore(a.date, end));
   console.log(articles);
 
   await browser.close();
