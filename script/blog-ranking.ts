@@ -6,15 +6,15 @@ import puppeteer from "puppeteer";
 
 const start = parseISO("2020-07-01T00:00:00+09:00");
 const end = parseISO("2021-01-01T00:00:00+09:00");
+const urls = [
+  "https://blog.shibayu36.org/archive/category/tech",
+  "https://blog.shibayu36.org/archive/category/tech?page=2",
+];
 
 async function main(): Promise<void> {
   const browser = await puppeteer.launch();
-  const articles = [
-    await fetchArticles(browser, "https://blog.shibayu36.org/archive/category/tech"),
-    await fetchArticles(browser, "https://blog.shibayu36.org/archive/category/tech?page=2"),
-  ]
-    .flat()
-    .filter((a) => isBefore(start, a.date) && isBefore(a.date, end));
+  const articlesList = await Promise.all(urls.map((u) => fetchArticles(browser, u)));
+  const articles = articlesList.flat().filter((a) => isBefore(start, a.date) && isBefore(a.date, end));
 
   console.log("総記事数:", articles.length);
   console.log("総ブックマーク数:" + sumBy(articles, "bookmark"));
