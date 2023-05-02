@@ -5,7 +5,7 @@ This script reads text from standard input, splits it into chunks, and generates
 in Japanese.
 
 Usage:
-  pbpaste | fillin OPENAI_API_KEY={{openai:api-key}} python summarize-text.py
+  pbpaste | OPENAI_API_KEY=... python summarize-text.py
 """
 
 import json
