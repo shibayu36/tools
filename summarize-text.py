@@ -19,11 +19,9 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.prompts import PromptTemplate
 
 verbose = os.environ.get("VERBOSE") == "1"
-prompt_template = """Write a concise summary of the following text delimited by triple backticks.
-If you find a section that appears to be a quote that has nothing to do with the main point of the story, please do not use that section in your summary.
-Your output must be written in Japanese
+prompt_template = """Write a concise summary of the following text in Japanese:
 
-```{text}```
+{text}
 """
 
 text = sys.stdin.read()
