@@ -30,7 +30,7 @@ print('\nTHINKING...')
 
 llm = ChatOpenAI(temperature=0)
 
-text_splitter = CharacterTextSplitter(chunk_size=3000)
+text_splitter = CharacterTextSplitter(chunk_size=3000, chunk_overlap=100)
 chunks = text_splitter.split_text(text)
 
 docs = [Document(page_content=t) for t in chunks]
