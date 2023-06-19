@@ -43,6 +43,6 @@
     "axios": "^1.4.0",
     "date-fns": "^2.30.0",
     "lodash": "^4.17.21",
-    "puppeteer": "^20.2.0"
+    "puppeteer": "^20.7.2"
   }
 }
