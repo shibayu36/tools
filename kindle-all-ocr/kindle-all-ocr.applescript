@@ -11,31 +11,19 @@ end takeScreenshot
 on run argv
 	-- Default values
 	set defaultOutputParentPosix to POSIX path of (path to downloads folder)
-	set defaultDeleteIntermediate to false
 
 	set outputParentPosix to defaultOutputParentPosix
-	set deleteIntermediate to defaultDeleteIntermediate
 
 	-- Parse arguments
 	if (count of argv) > 0 then
-		-- Check if the first argument is the flag or the path
-		if item 1 of argv is not "--delete-intermediate" then
-			set outputParentPosix to item 1 of argv
-			-- Remove trailing slash if exists
-			if outputParentPosix ends with "/" then
-				set outputParentPosix to text 1 thru -2 of outputParentPosix
-			end if
-			-- Check for the flag in the second argument
-			if (count of argv) > 1 and (item 2 of argv is "--delete-intermediate") then
-				set deleteIntermediate to true
-			end if
-		else
-			-- First argument is the flag, use default path
-			set deleteIntermediate to true
+		set outputParentPosix to item 1 of argv
+		-- Remove trailing slash if exists
+		if outputParentPosix ends with "/" then
+			set outputParentPosix to text 1 thru -2 of outputParentPosix
 		end if
 	end if
 
-	set pages to 3 -- スクリーンショット数
+	set pages to 3 -- Screenshot count
 	set keychar to (ASCII character 28) -- ページめくり方向(28=左,29=右)
 	set currentDate to do shell script "date +%Y%m%d_%H%M%S"
 	set folderPath to outputParentPosix & "/intermediate/"
@@ -82,15 +70,12 @@ on run argv
 	set scriptToRun to scriptFolder & "/ocr_and_combine.sh"
 	set outputPdfPath to outputParentPosix & "/combined_" & currentDate & ".pdf"
 
-	set deleteOption to ""
-	if deleteIntermediate then
-		set deleteOption to "--delete-intermediate"
-	end if
-	set shellCommand to quoted form of scriptToRun & " " & quoted form of folderPath & " " & quoted form of outputPdfPath & " " & deleteOption
+	set shellCommand to quoted form of scriptToRun & " " & quoted form of folderPath & " " & quoted form of outputPdfPath
 
 	try
 		set scriptResult to do shell script shellCommand
 		log "シェルスクリプトが完了しました。\n\n出力:\n" & scriptResult
+		
 		return "OK: " & outputPdfPath -- Return generated PDF path on success
 	on error errMsg number errNum
 		log "シェルスクリプト実行エラー: " & errMsg & " (エラー番号: " & errNum & ")"

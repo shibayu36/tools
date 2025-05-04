@@ -1,19 +1,12 @@
 #!/bin/bash
 
-# 引数チェック
-if [ "$#" -lt 2 ]; then
-    echo "Usage: $0 <input_dir> <output_pdf> [--delete-intermediate]"
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <input_dir> <output_pdf>"
     exit 1
 fi
 
 INPUT_DIR="$1"
 OUTPUT_PDF="$2"
-DELETE_INTERMEDIATE=false
-
-# オプション引数の処理
-if [ "$3" == "--delete-intermediate" ]; then
-    DELETE_INTERMEDIATE=true
-fi
 
 # 入力ディレクトリ存在チェック
 if [ ! -d "$INPUT_DIR" ]; then
@@ -57,18 +50,6 @@ if gs -dBATCH -dNOPAUSE -q -dAutoRotatePages=/None -sDEVICE=pdfwrite -sOutputFil
 else
     echo "Error: Failed to combine PDFs with Ghostscript."
     exit 1
-fi
-
-# 中間ファイルの削除
-if $DELETE_INTERMEDIATE; then
-    echo "Deleting intermediate files..."
-    # 個別PDFの削除
-    for pdf_file in "${processed_pdfs[@]}"; do
-        if [ -f "$pdf_file" ]; then
-            rm "$pdf_file"
-            echo "Deleted $pdf_file"
-        fi
-    done
 fi
 
 echo "Script finished successfully."
