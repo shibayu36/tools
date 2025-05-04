@@ -4,7 +4,7 @@ import { parse, parseISO, isBefore } from "date-fns";
 import { sumBy, sortBy } from "lodash";
 import puppeteer from "puppeteer";
 
-const start = parseISO("2023-07-01T00:00:00+09:00");
+const start = parseISO("2023-01-01T00:00:00+09:00");
 const end = parseISO("2024-01-01T00:00:00+09:00");
 const urls = [
   "https://blog.shibayu36.org/archive/category/tech",
@@ -19,7 +19,7 @@ async function main(): Promise<void> {
   console.log("総記事数:", articles.length);
   console.log("総ブックマーク数:" + sumBy(articles, "bookmark"));
   for (const a of sortBy(articles, [(a) => -a.bookmark])) {
-    console.log(`[${a.title} ${a.url}]`, a.bookmark);
+    console.log(`[${a.title}](${a.url}): ${a.bookmark}`);
   }
 
   await browser.close();
