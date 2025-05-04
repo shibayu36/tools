@@ -45,11 +45,12 @@ gs -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=output.pdf *.pdf
 
 # 実装TODO
 
-- AppleScriptに固定3ページのキャプチャロジックを実装
-- AppleScriptからシェルスクリプト呼び出しのインターフェース追加
-- シェルスクリプトでPNGをOCR付きPDFに変換
-- ghostscriptを使ったPDF結合処理の実装
-- CLI引数で出力フォルダ指定と中間ファイル削除オプションを実装
-- 各ステップのエラーハンドリングとログ出力機能を整備
-- AppleScriptに末尾検知ロジックを実装
-- READMEおよびドキュメントの更新
+- [ ] AppleScriptに固定3ページのキャプチャロジックを実装
+- [x] AppleScriptからシェルスクリプト呼び出しのインターフェース追加
+- [x] シェルスクリプトでPNGをOCR付きPDFに変換
+- [x] ghostscriptを使ったPDF結合処理の実装
+- [ ] CLI引数で出力フォルダ指定と中間ファイル削除オプションを実装
+- [ ] 各ステップのエラーハンドリングとログ出力機能を整備
+- [ ] AppleScriptに末尾検知ロジックを実装
+- [ ] READMEおよびドキュメントの更新
+- [ ] コンテンツのマージンを調整した方が良いか検討

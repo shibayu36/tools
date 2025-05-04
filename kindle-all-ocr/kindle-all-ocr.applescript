@@ -46,3 +46,22 @@ repeat with i from 1 to pages
 		delay 0.2 -- ページめくり後の安定時間
 	end tell
 end repeat
+
+-- シェルスクリプトを実行してOCRとPDF結合を行う
+tell application "System Events"
+	set scriptPath to path to me
+	set scriptFolder to POSIX path of (container of scriptPath)
+end tell
+
+set scriptToRun to scriptFolder & "/ocr_and_combine.sh"
+set outputPdfPath to folderPath & "combined_" & currentDate & ".pdf"
+
+set shellCommand to quoted form of scriptToRun & " " & quoted form of folderPath & " " & quoted form of outputPdfPath
+
+try
+	set scriptResult to do shell script shellCommand
+	display dialog "シェルスクリプトが完了しました。\n\n出力:\n" & scriptResult buttons {"OK"} default button "OK"
+on error errMsg number errNum
+	-- エラーメッセージには通常 stderr も含まれる
+	display dialog "シェルスクリプト実行エラー: " & errMsg & " (エラー番号: " & errNum & ")" buttons {"OK"} default button "OK"
+end try
