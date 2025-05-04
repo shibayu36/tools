@@ -49,7 +49,7 @@ gs -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=output.pdf *.pdf
 - [x] AppleScriptからシェルスクリプト呼び出しのインターフェース追加
 - [x] シェルスクリプトでPNGをOCR付きPDFに変換
 - [x] ghostscriptを使ったPDF結合処理の実装
-- [ ] コンテンツのマージンを調整した方が良いか検討
-- [ ] CLI引数で出力フォルダ指定と中間ファイル削除オプションを実装
+- [x] CLI引数で出力フォルダ指定 & 中間ファイル削除オプションを実装
 - [ ] AppleScriptに末尾検知ロジックを実装
 - [ ] READMEおよびドキュメントの更新
+- [ ] コンテンツのマージンを調整した方が良いか検討

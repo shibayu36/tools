@@ -27,6 +27,26 @@ brew install tesseract tesseract-lang ghostscript
 ## 使い方
 
 1. Kindle for Macアプリで、OCRしたい書籍を開き、最初のページを表示します。
-2. `kindle-all-ocr.applescript` をスクリプトエディタで開くか、`osascript kindle-all-ocr.applescript` コマンドで実行します。
+2. ターミナルを開き、以下のコマンドを実行します:
+   ```bash
+   osascript kindle-all-ocr.applescript [出力先親フォルダパス] [--delete-intermediate]
+   ```
+   - `[出力先親フォルダパス]`: (任意) PDFや中間ファイルを出力する親フォルダを指定します。デフォルトは `~/Downloads` です。
+   - `--delete-intermediate`: (任意) このフラグを付けると、処理完了後に中間ファイル (スクリーンショットPNGと個別OCR PDF) が保存されている `intermediate` フォルダを削除します。
+
+   **実行例:**
+   ```bash
+   # デフォルト設定 (Downloadsフォルダに出力、中間ファイルは残す)
+   osascript kindle-all-ocr.applescript
+
+   # 出力先を ~/Documents に指定
+   osascript kindle-all-ocr.applescript "/Users/your_username/Documents"
+
+   # 出力先を ~/Documents に指定し、中間ファイルを削除
+   osascript kindle-all-ocr.applescript "/Users/your_username/Documents" --delete-intermediate
+
+   # デフォルトの出力先 (Downloads) で、中間ファイルのみ削除
+   osascript kindle-all-ocr.applescript --delete-intermediate 
+   ```
 3. スクリプトが自動的にページめくりとスクリーンショット撮影、OCR処理、PDF結合を行います。
-4. 完了すると、ダウンロードフォルダ内に `Kindle_Screenshots_YYYYMMDD_HHMMSS` というフォルダが作成され、その中に結合されたPDFファイル (`combined_YYYYMMDD_HHMMSS.pdf`) が保存されます。 
+4. 完了すると、指定した出力先親フォルダ内に `intermediate` フォルダ（中間ファイル保存用、削除オプション指定時は削除される）と、結合されたPDFファイル (`combined_YYYYMMDD_HHMMSS.pdf`) が保存されます。 
