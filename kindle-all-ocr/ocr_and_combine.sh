@@ -52,7 +52,7 @@ echo "Combining PDF files into $OUTPUT_PDF..."
 
 # gsコマンドの実行 (ファイルリストは配列展開で渡す)
 # shellcheck disable=SC2086
-if gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile="$OUTPUT_PDF" "${processed_pdfs[@]}"; then
+if gs -dBATCH -dNOPAUSE -q -dAutoRotatePages=/None -sDEVICE=pdfwrite -sOutputFile="$OUTPUT_PDF" "${processed_pdfs[@]}"; then
     echo "Successfully combined PDFs into $OUTPUT_PDF."
 else
     echo "Error: Failed to combine PDFs with Ghostscript."

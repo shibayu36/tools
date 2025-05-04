@@ -45,7 +45,7 @@ gs -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=output.pdf *.pdf
 
 # 実装TODO
 
-- [ ] AppleScriptに固定3ページのキャプチャロジックを実装
+- [x] AppleScriptに固定3ページのキャプチャロジックを実装
 - [x] AppleScriptからシェルスクリプト呼び出しのインターフェース追加
 - [x] シェルスクリプトでPNGをOCR付きPDFに変換
 - [x] ghostscriptを使ったPDF結合処理の実装
