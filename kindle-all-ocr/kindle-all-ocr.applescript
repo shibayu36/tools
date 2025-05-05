@@ -11,16 +11,22 @@ end takeScreenshot
 on run argv
 	-- Default values
 	set defaultOutputParentPosix to POSIX path of (path to downloads folder)
-
 	set outputParentPosix to defaultOutputParentPosix
+	set enableOCR to false
 
 	-- Parse arguments
 	if (count of argv) > 0 then
-		set outputParentPosix to item 1 of argv
-		-- Remove trailing slash if exists
-		if outputParentPosix ends with "/" then
-			set outputParentPosix to text 1 thru -2 of outputParentPosix
-		end if
+		repeat with arg in argv
+			if arg is "--enable-ocr" then
+				set enableOCR to true
+			else
+				set outputParentPosix to arg
+				-- Remove trailing slash if exists
+				if outputParentPosix ends with "/" then
+					set outputParentPosix to text 1 thru -2 of outputParentPosix
+				end if
+			end if
+		end repeat
 	end if
 
 	set pages to 3 -- Screenshot count
@@ -70,15 +76,20 @@ on run argv
 	set scriptToRun to scriptFolder & "/ocr_and_combine.sh"
 	set outputPdfPath to outputParentPosix & "/combined_" & currentDate & ".pdf"
 
-	set shellCommand to quoted form of scriptToRun & " " & quoted form of folderPath & " " & quoted form of outputPdfPath
+	-- enableOCR の値を引数に追加
+	set shellCommand to quoted form of scriptToRun & " " & quoted form of folderPath & " " & quoted form of outputPdfPath & " " & enableOCR
 
 	try
 		set scriptResult to do shell script shellCommand
-		log "シェルスクリプトが完了しました。\n\n出力:\n" & scriptResult
-		
-		return "OK: " & outputPdfPath -- Return generated PDF path on success
+		log "シェルスクリプトが完了しました。\\n\\n出力:\\n" & scriptResult
+		if enableOCR then
+			return "OK: " & outputPdfPath
+		else
+			-- OCRが無効な場合もPDFは生成されるので、そのパスを返す
+			return "OK (No OCR): " & outputPdfPath
+		end if
 	on error errMsg number errNum
 		log "シェルスクリプト実行エラー: " & errMsg & " (エラー番号: " & errNum & ")"
-		error "Error: " & errMsg number errNum -- Return error to caller
+		error "Error: " & errMsg number errNum
 	end try
 end run
