@@ -67,6 +67,10 @@ on run argv
 	tell application "System Events" to tell process "Amazon Kindle"
 		set {xPos, yPos} to value of attribute "AXPosition" of front window
 		set {wSize, hSize} to value of attribute "AXSize" of front window
+
+		-- ウインドウヘッダーのサイズ28pxを取り除く
+		set yPos to yPos + 28
+		set hSize to hSize - 28
 	end tell
 
 	-- スクリーンショットを取得
