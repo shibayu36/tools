@@ -1,12 +1,15 @@
 # Kindle All OCR
 
-macOS上でKindle for Macアプリを利用し、表示されている書籍の全ページをOCR（光学文字認識）処理して、検索可能な単一のPDFファイルとして保存するツールです。
+macOS上でKindle for Macアプリを利用し、表示されている書籍のページをスクリーンショット撮影し、単一のPDFファイルとして保存するツールです。
 
 ## 機能
 
-- Kindle for Mac の表示内容をページごとにスクリーンショット撮影
-- Tesseract OCR を利用して各ページの画像を日本語テキスト認識
-- Ghostscript を利用してOCR処理済みのページPDFを単一ファイルに結合
+- Kindle for Mac の表示内容を指定ページ数分スクリーンショット撮影 (`kindle-screenshot.applescript`)
+    - 撮影中に `.` キーを押し続けることで中断可能
+- 撮影されたスクリーンショット画像から不要なものを手動で削除
+- 残った画像をOCR処理（オプション）またはそのままPDFに変換し、単一ファイルに結合 (`create_pdf.sh`)
+    - OCRエンジンとして Tesseract OCR を利用
+    - PDF結合エンジンとして Ghostscript を利用
 
 ## 必要なもの (依存関係)
 
@@ -26,36 +29,48 @@ brew install tesseract tesseract-lang ghostscript
 
 ## 使い方
 
-1. Kindle for Macアプリで、処理したい書籍を開き、最初のページを表示します。
-2. ターミナルを開き、以下のコマンドを実行します。 `--enable-ocr` フラグを追加するとOCRが実行されます。
-   ```bash
-   osascript kindle-all-ocr.applescript [出力先親フォルダパス] [--enable-ocr] [--left-to-right]
-   ```
-   - `[出力先親フォルダパス]`: (任意) PDFや中間ファイルを出力する親フォルダを指定します。デフォルトは `~/Downloads` です。
-   - `--enable-ocr`: (任意) このフラグを指定すると、Tesseract OCRによる文字認識が実行されます。指定しない場合は、スクリーンショットがOCRなしでPDFに変換・結合されます。
-   - `--left-to-right`: (任意) このフラグを指定すると、ページめくりが右方向（左から右へ）になります。デフォルトは左方向（右から左へ）です。
+このツールは2つのステップで実行します。
 
-   **実行例:**
-   ```bash
-   # デフォルト設定 (Downloadsフォルダに出力, OCRなし)
-   osascript kindle-all-ocr.applescript
+**ステップ1: スクリーンショットの撮影 (`kindle-screenshot.applescript`)**
 
-   # 出力先を ~/Documents に指定
-   osascript kindle-all-ocr.applescript "/Users/your_username/Documents"
+1.  Kindle for Macアプリで、処理したい書籍を開き、最初のページを表示します。
+2.  ターミナルを開き、以下のコマンドを実行します。
+    ```bash
+    osascript kindle-screenshot.applescript [出力先フォルダパス] --pages=[撮影枚数] [--left-to-right]
+    ```
+    - `[出力先フォルダパス]`: (必須) スクリーンショット画像を保存するフォルダを指定します。**フォルダは事前に存在している必要があります。**
+    - `--pages=[撮影枚数]`: (必須) 撮影する最大ページ数を指定します。
+    - `--left-to-right`: (任意) このフラグを指定すると、ページめくりが右方向（左から右へ）になります。デフォルトは左方向（右から左へ）です。
 
-   # OCRを有効にして実行 (Downloadsフォルダに出力)
-   osascript kindle-all-ocr.applescript --enable-ocr
+    **実行例:**
+    ```bash
+    # ~/Downloads/mybook フォルダに最大200ページ撮影 (右から左へページめくり)
+    osascript kindle-screenshot.applescript "$HOME/Downloads/mybook" --pages=200
 
-   # 出力先を指定し、OCRを有効にして実行
-   osascript kindle-all-ocr.applescript "/Users/your_username/Documents" --enable-ocr
+    # ~/Documents/anotherbook フォルダに最大150ページ撮影 (左から右へページめくり)
+    osascript kindle-screenshot.applescript "$HOME/Documents/anotherbook" --pages=150 --left-to-right
+    ```
+3.  スクリプトが自動的にページめくりとスクリーンショット撮影を開始します。
+4.  撮影を途中で終了したい場合は、`.` (ピリオド) キーを押し続けてください。スクリプトが停止します。
+5.  撮影完了後、指定した出力先フォルダを開き、表紙や目次、白紙ページなど、最終的なPDFに含めたくないスクリーンショット画像ファイル（`screenshot_XXX.png`）を手動で削除してください。
 
-   # 右方向へのページめくりを指定して実行 (--left-to-right フラグを追加)
-   osascript kindle-all-ocr.applescript --left-to-right
+**ステップ2: PDFへの変換・結合 (`create_pdf.sh`)**
 
-   # 出力先を指定し、右方向へのページめくりとOCRを有効にして実行
-   osascript kindle-all-ocr.applescript "/Users/your_username/Documents" --left-to-right --enable-ocr
-   ```
-3. スクリプトが自動的にページめくりとスクリーンショット撮影を行います。
-4. `--enable-ocr` フラグが指定されている場合はOCR処理が行われます。指定されていない場合は、OCRなしでPDF変換が行われます。
-5. 最後に、各ページのPDFが結合されます。
-6. 完了すると、指定した出力先親フォルダ内に `intermediate` フォルダ（中間ファイル保存用）と、結合されたPDFファイル (`combined_YYYYMMDD_HHMMSS.pdf`) が保存されます。 
+1.  ターミナルで、以下のコマンドを実行します。
+    ```bash
+    ./create_pdf.sh [スクリーンショット保存フォルダパス] [出力PDFファイルパス] [--enable-ocr]
+    ```
+    - `[スクリーンショット保存フォルダパス]`: (必須) ステップ1でスクリーンショットを保存し、不要なファイルを削除したフォルダのパスを指定します。
+    - `[出力PDFファイルパス]`: (必須) 結合されたPDFファイルの出力パスを指定します（例: `~/Downloads/combined_book.pdf`）。
+    - `--enable-ocr`: (任意) このフラグを指定すると、Tesseract OCRによる日本語文字認識が実行されます。**注意:** OCR機能は実験的なものであり、認識精度は保証されません。指定しない場合は、OCRなしで画像がPDFに変換・結合されます。
+
+    **実行例:**
+    ```bash
+    # OCRなしでPDFを生成
+    ./create_pdf.sh "$HOME/Downloads/mybook" "$HOME/Downloads/mybook_combined.pdf"
+
+    # OCRを有効にしてPDFを生成
+    ./create_pdf.sh "$HOME/Downloads/mybook" "$HOME/Downloads/mybook_ocr_combined.pdf" --enable-ocr
+    ```
+2.  スクリプトがフォルダ内のPNGファイルを処理し、指定したパスに単一のPDFファイルとして結合・保存します。
+3.  完了すると、指定した出力先に結合されたPDFファイルが作成されます。
