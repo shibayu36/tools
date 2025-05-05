@@ -1,4 +1,4 @@
-# Kindle All OCR
+# Kindle To PDF
 
 macOS上でKindle for Macアプリを利用し、表示されている書籍のページをスクリーンショット撮影し、単一のPDFファイルとして保存するツールです。
 
