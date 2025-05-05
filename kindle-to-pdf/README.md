@@ -72,3 +72,20 @@ brew install imagemagick
     ```
 2.  スクリプトがフォルダ内のPNGファイルを処理し、指定したパスに単一のPDFファイルとして結合・保存します。
 3.  完了すると、指定した出力先に結合されたPDFファイルが作成されます。
+
+## 翻訳の容量制限になってしまったために分割したい
+qpdfを活用する。
+
+```bash
+brew install qpdf
+```
+
+```bash
+qpdf input.pdf --pages . 1-20 -- output1.pdf
+qpdf input.pdf --pages . 21-z -- output2.pdf
+```
+
+翻訳後に結合
+```bash
+qpdf --empty --pages output1.pdf output2.pdf -- merged.pdf
+```
