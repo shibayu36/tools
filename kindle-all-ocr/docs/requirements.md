@@ -51,5 +51,6 @@ gs -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=output.pdf *.pdf
 - [x] ghostscriptを使ったPDF結合処理の実装
 - [x] CLI引数で出力フォルダ指定 & 中間ファイル削除オプションを実装
 - [ ] AppleScriptに末尾検知ロジックを実装
+- [ ] OCR処理がそもそもうまくいってなさそう
 - [ ] READMEおよびドキュメントの更新
 - [ ] コンテンツのマージンを調整した方が良いか検討
