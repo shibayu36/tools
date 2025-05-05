@@ -18,9 +18,13 @@ fi
 echo "Starting PDF generation process for PNG files in $INPUT_DIR..."
 
 # magick コマンドを使用してPNGを直接PDFに変換および結合
-# 電子書籍として見る分にはボヤけが気にならない程度で圧縮を行う
 echo "Converting PNG files to $OUTPUT_PDF using magick..."
-if magick "$INPUT_DIR"/*.png -filter Lanczos -colorspace sRGB -resize 80% -quality 62 -sampling-factor 4:2:0 -strip -compress jpeg "$OUTPUT_PDF"; then
+# 圧縮なし
+if magick "$INPUT_DIR"/*.png -strip -compress jpeg "$OUTPUT_PDF"; then
+# グレースケールへの変更のみ
+# if magick "$INPUT_DIR"/*.png -colorspace Gray -strip -compress jpeg "$OUTPUT_PDF"; then
+# 解像度落とした圧縮。電子書籍として見る分にはボヤけが気にならない程度で圧縮を行う。ただしOCR精度が落ちるので注意
+# if magick "$INPUT_DIR"/*.png -filter Lanczos -colorspace sRGB -resize 80% -quality 62 -sampling-factor 4:2:0 -strip -compress jpeg "$OUTPUT_PDF"; then
     echo "Successfully created $OUTPUT_PDF using magick."
 else
     echo "Error: Failed to convert PNG files to PDF with magick."
