@@ -17,38 +17,13 @@ fi
 
 echo "Starting PDF generation process for PNG files in $INPUT_DIR..."
 
-# PDF変換実行 (中間PDFファイルは入力ディレクトリ内に作成)
-processed_pdfs=()
-shopt -s nullglob # マッチするファイルがない場合に空になるように設定
-for img_file in "$INPUT_DIR"/*.png; do
-    base_name=$(basename "$img_file" .png)
-    pdf_output_path="$INPUT_DIR/${base_name}.pdf"
-
-    echo "Processing $img_file (converting to PDF using sips)..."
-    if sips -s format pdf "$img_file" --out "$pdf_output_path" > /dev/null 2>&1; then # sipsの出力を抑制
-        echo "Successfully created $pdf_output_path via sips"
-        processed_pdfs+=("$pdf_output_path")
-    else
-        echo "Error: Failed to convert $img_file to PDF with sips."
-        exit 1
-    fi
-done
-shopt -u nullglob # 設定を元に戻す
-
-# 処理されたPDFがない場合は終了
-if [ ${#processed_pdfs[@]} -eq 0 ]; then
-    echo "No PNG files found or processed in $INPUT_DIR. Exiting."
-    exit 0
-fi
-
-echo "Combining PDF files into $OUTPUT_PDF..."
-
-# gsコマンドの実行 (ファイルリストは配列展開で渡す)
-# shellcheck disable=SC2086
-if gs -dBATCH -dNOPAUSE -q -dAutoRotatePages=/None -sDEVICE=pdfwrite -sOutputFile="$OUTPUT_PDF" "${processed_pdfs[@]}"; then
-    echo "Successfully combined PDFs into $OUTPUT_PDF."
+# magick コマンドを使用してPNGを直接PDFに変換および結合
+# 電子書籍として見る分にはボヤけが気にならない程度で圧縮を行う
+echo "Converting PNG files to $OUTPUT_PDF using magick..."
+if magick "$INPUT_DIR"/*.png -filter Lanczos -colorspace sRGB -resize 80% -quality 62 -sampling-factor 4:2:0 -strip -compress jpeg "$OUTPUT_PDF"; then
+    echo "Successfully created $OUTPUT_PDF using magick."
 else
-    echo "Error: Failed to combine PDFs with Ghostscript."
+    echo "Error: Failed to convert PNG files to PDF with magick."
     exit 1
 fi
 

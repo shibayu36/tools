@@ -8,21 +8,21 @@ macOS上でKindle for Macアプリを利用し、表示されている書籍の�
     - 撮影中に `.` キーを押し続けることで中断可能
 - 撮影されたスクリーンショット画像から不要なものを手動で削除
 - 残った画像をPDFに変換し、単一ファイルに結合 (`create_pdf.sh`)
-    - PDF変換・結合エンジンとして macOS標準の`sips`とGhostscript を利用
+    - PDF変換・結合エンジンとして [ImageMagick](https://imagemagick.org/) (`magick` コマンド) を利用
 
 ## 必要なもの (依存関係)
 
 このツールを実行するには、以下のソフトウェアがインストールされている必要があります。
 
-- [Ghostscript](https://ghostscript.com/)
-   - PDF結合に使用
+- [ImageMagick](https://imagemagick.org/)
+   - PNG画像からPDFへの変換・結合に使用
 
 ## インストール
 
 Homebrewを使用して必要な依存関係をインストールします。
 
 ```bash
-brew install ghostscript
+brew install imagemagick
 ```
 
 ## 使い方
