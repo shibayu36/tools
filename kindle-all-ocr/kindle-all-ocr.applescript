@@ -13,24 +13,35 @@ on run argv
 	set defaultOutputParentPosix to POSIX path of (path to downloads folder)
 	set outputParentPosix to defaultOutputParentPosix
 	set enableOCR to false
+	set isLeftToRight to false -- デフォルト: 左めくり（標準的な読み方）
 
-	-- Parse arguments
-	if (count of argv) > 0 then
-		repeat with arg in argv
-			if arg is "--enable-ocr" then
-				set enableOCR to true
-			else
-				set outputParentPosix to arg
-				-- Remove trailing slash if exists
-				if outputParentPosix ends with "/" then
-					set outputParentPosix to text 1 thru -2 of outputParentPosix
-				end if
+	-- 引数をパース
+	repeat with aRef in argv
+		set arg to contents of aRef
+		if arg = "--enable-ocr" then
+			set enableOCR to true
+		else if arg = "--left-to-right" then
+			set isLeftToRight to true
+		else if arg does not start with "--" then
+			-- フラグでない引数は出力パスとみなす
+			set outputParentPosix to arg
+			-- 末尾のスラッシュがあれば削除
+			if outputParentPosix ends with "/" then
+				set outputParentPosix to text 1 thru -2 of outputParentPosix
 			end if
-		end repeat
-	end if
+		else
+			-- 不明なフラグはログに出力する（エラーにはしない）
+			log "不明なフラグ: " & arg
+		end if
+	end repeat
 
-	set pages to 3 -- Screenshot count
-	set keychar to (ASCII character 28) -- ページめくり方向(28=左,29=右)
+	set pages to 3 -- スクリーンショット枚数
+	-- isLeftToRight フラグに基づいてキーコードを設定
+	if isLeftToRight then
+		set keychar to (ASCII character 29) -- 右矢印（左から右へのページめくり）
+	else
+		set keychar to (ASCII character 28) -- 左矢印（デフォルト：右から左へのページめくり）
+	end if
 	set currentDate to do shell script "date +%Y%m%d_%H%M%S"
 	set folderPath to outputParentPosix & "/intermediate/"
 

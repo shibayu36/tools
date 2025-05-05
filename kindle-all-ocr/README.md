@@ -29,10 +29,11 @@ brew install tesseract tesseract-lang ghostscript
 1. Kindle for Macアプリで、処理したい書籍を開き、最初のページを表示します。
 2. ターミナルを開き、以下のコマンドを実行します。 `--enable-ocr` フラグを追加するとOCRが実行されます。
    ```bash
-   osascript kindle-all-ocr.applescript [出力先親フォルダパス] [--enable-ocr]
+   osascript kindle-all-ocr.applescript [出力先親フォルダパス] [--enable-ocr] [--left-to-right]
    ```
    - `[出力先親フォルダパス]`: (任意) PDFや中間ファイルを出力する親フォルダを指定します。デフォルトは `~/Downloads` です。
    - `--enable-ocr`: (任意) このフラグを指定すると、Tesseract OCRによる文字認識が実行されます。指定しない場合は、スクリーンショットがOCRなしでPDFに変換・結合されます。
+   - `--left-to-right`: (任意) このフラグを指定すると、ページめくりが右方向（左から右へ）になります。デフォルトは左方向（右から左へ）です。
 
    **実行例:**
    ```bash
@@ -47,6 +48,12 @@ brew install tesseract tesseract-lang ghostscript
 
    # 出力先を指定し、OCRを有効にして実行
    osascript kindle-all-ocr.applescript "/Users/your_username/Documents" --enable-ocr
+
+   # 右方向へのページめくりを指定して実行 (--left-to-right フラグを追加)
+   osascript kindle-all-ocr.applescript --left-to-right
+
+   # 出力先を指定し、右方向へのページめくりとOCRを有効にして実行
+   osascript kindle-all-ocr.applescript "/Users/your_username/Documents" --left-to-right --enable-ocr
    ```
 3. スクリプトが自動的にページめくりとスクリーンショット撮影を行います。
 4. `--enable-ocr` フラグが指定されている場合はOCR処理が行われます。指定されていない場合は、OCRなしでPDF変換が行われます。
