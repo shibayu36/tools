@@ -1,13 +1,32 @@
 #!/bin/bash
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <input_dir> <output_pdf> <enable_ocr:true|false>"
+ENABLE_OCR="false"
+INPUT_DIR=""
+OUTPUT_PDF=""
+POSITIONAL_ARGS=()
+
+# 引数パース
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --enable-ocr)
+      ENABLE_OCR="true"
+      shift
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+# 位置引数の数をチェック
+if [ ${#POSITIONAL_ARGS[@]} -ne 2 ]; then
+    echo "Usage: $0 <input_dir> <output_pdf> [--enable-ocr]"
     exit 1
 fi
 
-INPUT_DIR="$1"
-OUTPUT_PDF="$2"
-ENABLE_OCR="$3"
+INPUT_DIR="${POSITIONAL_ARGS[0]}"
+OUTPUT_PDF="${POSITIONAL_ARGS[1]}"
 
 # 入力ディレクトリ存在チェック
 if [ ! -d "$INPUT_DIR" ]; then
