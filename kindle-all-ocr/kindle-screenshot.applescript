@@ -1,3 +1,8 @@
+use framework "AppKit"
+use scripting additions
+
+property kVK_ANSI_Period : 47 -- .
+
 -- 新規フォルダを作成する関数
 on createFolder(folderPath)
 	do shell script "mkdir -p " & quoted form of folderPath
@@ -8,11 +13,17 @@ on takeScreenshot(savePath, x, y, width, height)
 	do shell script "screencapture -R " & x & "," & y & "," & width & "," & height & " " & quoted form of savePath
 end takeScreenshot
 
+on isKeyDown(keyCode)
+    -- kCGEventSourceStateCombinedSessionState を指定すると
+    -- どのアプリで押されていても判定できる
+    return (current application's CGEventSourceKeyState(¬
+        current application's kCGEventSourceStateCombinedSessionState, keyCode)) as boolean
+end isKeyDown
+
 on run argv
 	-- Default values
 	set defaultOutputParentPosix to POSIX path of (path to downloads folder)
 	set outputParentPosix to defaultOutputParentPosix
-	set enableOCR to false
 	set isLeftToRight to false -- デフォルト: 左めくり（標準的な読み方）
 
 	-- 引数をパース
@@ -61,6 +72,11 @@ on run argv
 	-- スクリーンショットを取得
 	set screenshotPaths to {}
 	repeat with i from 1 to pages
+		-- .キーが押されていたら中断する
+		if isKeyDown(kVK_ANSI_Period) then
+			exit repeat
+		end if
+
 		set screenshotPath to folderPath & "screenshot_" & i & ".png"
 		
 		-- スクリーンショットを撮影
