@@ -21,10 +21,11 @@ on isKeyDown(keyCode)
 end isKeyDown
 
 on run argv
-	-- Default values
-	set defaultOutputParentPosix to POSIX path of (path to downloads folder)
-	set outputParentPosix to defaultOutputParentPosix
-	set isLeftToRight to false -- デフォルト: 左めくり（標準的な読み方）
+	-- デフォルト
+	set outputParentPosix to POSIX path of (path to downloads folder)
+	set isLeftToRight to false -- デフォルト: 右から左
+	set cropTop to 0
+	set cropBottom to 0
 
 	-- 引数をパース
 	repeat with aRef in argv
@@ -35,6 +36,12 @@ on run argv
             -- = 以降の数字をページ数として読み込む
             set pagesText to text ((offset of "=" in arg) + 1) thru -1 of arg
             set pages to pagesText as number
+		else if arg starts with "--crop-top=" then
+			set cropTopText to text ((offset of "=" in arg) + 1) thru -1 of arg
+			set cropTop to cropTopText as number
+		else if arg starts with "--crop-bottom=" then
+			set cropBottomText to text ((offset of "=" in arg) + 1) thru -1 of arg
+			set cropBottom to cropBottomText as number
 		else if arg does not start with "--" then
 			-- フラグでない引数は出力パスとみなす
 			set outputParentPosix to arg
@@ -68,9 +75,9 @@ on run argv
 		set {xPos, yPos} to value of attribute "AXPosition" of front window
 		set {wSize, hSize} to value of attribute "AXSize" of front window
 
-		-- ウインドウヘッダーのサイズ28pxを取り除く
-		set yPos to yPos + 28
-		set hSize to hSize - 28
+		-- ウインドウヘッダーのサイズ28pxとクロップ量を考慮
+		set yPos to yPos + 28 + cropTop
+		set hSize to hSize - 28 - cropTop - cropBottom
 	end tell
 
 	-- スクリーンショットを取得

@@ -36,11 +36,15 @@ brew install tesseract tesseract-lang ghostscript
 1.  Kindle for Macアプリで、処理したい書籍を開き、最初のページを表示します。
 2.  ターミナルを開き、以下のコマンドを実行します。
     ```bash
-    osascript kindle-screenshot.applescript [出力先フォルダパス] --pages=[撮影枚数] [--left-to-right]
+    osascript kindle-screenshot.applescript [出力先フォルダパス] --pages=<撮影枚数> [--left-to-right] [--crop-top=<ピクセル数>] [--crop-bottom=<ピクセル数>]
     ```
     - `[出力先フォルダパス]`: (必須) スクリーンショット画像を保存するフォルダを指定します。**フォルダは事前に存在している必要があります。**
     - `--pages=[撮影枚数]`: (必須) 撮影する最大ページ数を指定します。
     - `--left-to-right`: (任意) このフラグを指定すると、ページめくりが右方向（左から右へ）になります。デフォルトは左方向（右から左へ）です。
+    - `--crop-top=<ピクセル数>`: (任意) スクリーンショットの上部を指定したピクセル数だけ切り取ります。デフォルトは0です。
+    - `--crop-bottom=<ピクセル数>`: (任意) スクリーンショットの下部を指定したピクセル数だけ切り取ります。デフォルトは0です。
+
+    Kindle アプリの標準的なビューでは、ヘッダーとフッターを除外するために `--crop-top=46 --crop-bottom=46` を指定するのがおすすめです。
 
     **実行例:**
     ```bash
