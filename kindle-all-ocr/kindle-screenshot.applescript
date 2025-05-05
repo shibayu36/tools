@@ -77,8 +77,8 @@ on run argv
 			exit repeat
 		end if
 
-		set screenshotPath to folderPath & "screenshot_" & i & ".png"
-		
+		set screenshotPath to folderPath & "screenshot_" & text -3 thru -1 of ("000" & i) & ".png"
+
 		-- スクリーンショットを撮影
 		takeScreenshot(screenshotPath, xPos, yPos, wSize, hSize)
 		
