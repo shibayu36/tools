@@ -15,16 +15,25 @@ macOS上でKindle for Macアプリを利用し、表示されている書籍の�
 
 このツールを実行するには、以下のソフトウェアがインストールされている必要があります。
 
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract)
-- Tesseract 日本語言語データ (`tesseract-lang`)
 - [Ghostscript](https://ghostscript.com/)
+   - PDF結合に使用
+
+OCRを使いたい時は以下のソフトウェアもインストールしてください。ただしDeepL/NotebookLMなどのOCRに任せることをおすすめします。
+
+- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract)
+   - OCRに使用
+- Tesseract 日本語言語データ (`tesseract-lang`)
+   - OCRに使用
 
 ## インストール
 
 Homebrewを使用して必要な依存関係をインストールします。
 
 ```bash
-brew install tesseract tesseract-lang ghostscript
+brew install ghostscript
+
+# 必要なら
+brew install tesseract tesseract-lang
 ```
 
 ## 使い方
