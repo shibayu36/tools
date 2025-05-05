@@ -54,7 +54,7 @@ on run argv
 	else
 		set keychar to (ASCII character 28) -- 左矢印（デフォルト：右から左へのページめくり）
 	end if
-	set folderPath to outputParentPosix & "/intermediate/"
+	set folderPath to outputParentPosix & "/"
 
 	-- 新規フォルダの作成
 	createFolder(folderPath)
