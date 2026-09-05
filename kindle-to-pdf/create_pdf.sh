@@ -17,8 +17,20 @@ convert_to_pdf() {
     # magick "${input_files[@]}" -filter Lanczos -colorspace sRGB -resize 80% -quality 62 -sampling-factor 4:2:0 -strip -compress jpeg "$output_file"
 }
 
+# PDFにOCRでテキストレイヤーを付与する関数
+# 使用方法: add_ocr <input_pdf> <output_pdf>
+# 言語は横書き日本語+英語で固定。縦書き対応が必要になったらここで -l と --tesseract-pagesegmode を変える
+add_ocr() {
+    local input_pdf="$1"
+    local output_pdf="$2"
+
+    # --output-type pdf を外すとPDF/A変換で画像が再エンコードされ、convert_to_pdf で調整した画質が変わる
+    ocrmypdf -l jpn+eng --output-type pdf --skip-text --jobs "$(sysctl -n hw.ncpu)" "$input_pdf" "$output_pdf"
+}
+
 usage() {
-    echo "Usage: $0 <input_dir> <output_pdf> [--pages-per-pdf N]"
+    echo "Usage: $0 <input_dir> <output_pdf> [--ocr] [--pages-per-pdf N]"
+    echo "  --ocr:             Optional. Add a searchable text layer with OCR (Japanese + English)."
     echo "  --pages-per-pdf N: Optional. Number of pages per PDF file."
     echo "                     If not specified, all pages will be combined into one PDF."
     exit 1
@@ -26,9 +38,14 @@ usage() {
 
 POSITIONAL=()
 PAGES_PER_PDF=""
+OCR=false
 
 while [ $# -gt 0 ]; do
     case "$1" in
+        --ocr)
+            OCR=true
+            shift
+            ;;
         --pages-per-pdf)
             [ $# -ge 2 ] || usage
             PAGES_PER_PDF="$2"
@@ -55,6 +72,16 @@ if [ ! -d "$INPUT_DIR" ]; then
     echo "Error: Input directory '$INPUT_DIR' not found."
     exit 1
 fi
+
+if [ "$OCR" = true ] && ! command -v ocrmypdf >/dev/null 2>&1; then
+    echo "Error: ocrmypdf is required for --ocr but not installed."
+    echo "  brew install ocrmypdf"
+    exit 1
+fi
+
+# OCR時はOCRなしの中間PDFをここに書き、失敗時も含めて終了時に削除する
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
 
 # PNGファイルのリストを取得してソート
 PNG_FILES=($(ls "$INPUT_DIR"/*.png 2>/dev/null | sort))
@@ -108,13 +135,28 @@ for ((i=0; i<${#PNG_FILES[@]}; i+=PAGES_PER_PDF)); do
     # このグループのファイルを取得
     GROUP_FILES=("${PNG_FILES[@]:$i:$PAGES_PER_PDF}")
 
-    # PDFに変換
-    if convert_to_pdf "$OUTPUT_FILE" "${GROUP_FILES[@]}"; then
-        echo "Successfully created $OUTPUT_FILE"
+    if [ "$OCR" = true ]; then
+        # OCR失敗時に出力先へ不完全なPDFを残さないよう、変換結果は一時ファイルに書く
+        CONVERTED_FILE="$TMP_DIR/converted_$PDF_NUM.pdf"
     else
+        CONVERTED_FILE="$OUTPUT_FILE"
+    fi
+
+    # PDFに変換
+    if ! convert_to_pdf "$CONVERTED_FILE" "${GROUP_FILES[@]}"; then
         echo "Error: Failed to convert PNG files to $OUTPUT_FILE with magick."
         exit 1
     fi
+
+    if [ "$OCR" = true ]; then
+        if ! add_ocr "$CONVERTED_FILE" "$OUTPUT_FILE"; then
+            echo "Error: Failed to add OCR text layer to $OUTPUT_FILE with ocrmypdf."
+            exit 1
+        fi
+        rm -f "$CONVERTED_FILE"
+    fi
+
+    echo "Successfully created $OUTPUT_FILE"
 
     PDF_NUM=$((PDF_NUM + 1))
 done

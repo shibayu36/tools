@@ -9,6 +9,7 @@ macOS上でKindle for Macアプリを利用し、表示されている書籍の�
 - 撮影されたスクリーンショット画像から不要なものを手動で削除
 - 残った画像をPDFに変換し、単一ファイルに結合 (`create_pdf.sh`)
     - PDF変換・結合エンジンとして [ImageMagick](https://imagemagick.org/) (`magick` コマンド) を利用
+    - `--ocr` を指定すると、OCRで本文をテキストとして検索・コピーできるPDFになる（LLMに読ませる用途向け）
 
 ## 必要なもの (依存関係)
 
@@ -16,6 +17,8 @@ macOS上でKindle for Macアプリを利用し、表示されている書籍の�
 
 - [ImageMagick](https://imagemagick.org/)
    - PNG画像からPDFへの変換・結合に使用
+- [OCRmyPDF](https://ocrmypdf.readthedocs.io/)（`--ocr` を使う場合のみ）
+   - PDFへのテキストレイヤー付与に使用。OCRエンジンの Tesseract と日本語の言語データも一緒に入る
 
 ## インストール
 
@@ -23,6 +26,9 @@ Homebrewを使用して必要な依存関係をインストールします。
 
 ```bash
 brew install imagemagick
+
+# --ocr を使う場合
+brew install ocrmypdf
 ```
 
 ## 使い方
@@ -60,27 +66,37 @@ brew install imagemagick
 
 1.  ターミナルで、以下のコマンドを実行します。
     ```bash
-    ./create_pdf.sh [スクリーンショット保存フォルダパス] [出力PDFファイルパス] [1PDFあたりのページ数]
+    ./create_pdf.sh [スクリーンショット保存フォルダパス] [出力PDFファイルパス] [--ocr] [--pages-per-pdf <1PDFあたりのページ数>]
     ```
     - `[スクリーンショット保存フォルダパス]`: (必須) ステップ1でスクリーンショットを保存し、不要なファイルを削除したフォルダのパスを指定します。
     - `[出力PDFファイルパス]`: (必須) 結合されたPDFファイルの出力パスを指定します（例: `~/Downloads/combined_book.pdf`）。
-    - `[1PDFあたりのページ数]`: (任意) 1つのPDFファイルに含めるページ数を指定します。指定しない場合、すべてのページが1つのPDFに結合されます。指定した場合、複数のPDFファイルが作成され、ファイル名に連番（例: `_001.pdf`, `_002.pdf`）が付きます。
+    - `--ocr`: (任意) OCRで本文のテキストレイヤーを付与します。横書き日本語と英語を認識対象とします。LLMに読ませたり、ビューアで本文を検索・コピーしたりできるようになります。ページ分割と併用した場合、分割された各PDFすべてにテキストレイヤーが付きます。
+    - `--pages-per-pdf <1PDFあたりのページ数>`: (任意) 1つのPDFファイルに含めるページ数を指定します。指定しない場合、すべてのページが1つのPDFに結合されます。指定した場合、複数のPDFファイルが作成され、ファイル名に連番（例: `_001.pdf`, `_002.pdf`）が付きます。
 
     **実行例:**
     ```bash
     # すべてのページを1つのPDFに生成
     ./create_pdf.sh "$HOME/Downloads/mybook" "$HOME/Downloads/mybook_combined.pdf"
-    
+
+    # OCR付きで1つのPDFに生成
+    ./create_pdf.sh "$HOME/Downloads/mybook" "$HOME/Downloads/mybook_combined.pdf" --ocr
+
     # 50ページごとに分割してPDFを生成（mybook_combined_001.pdf, mybook_combined_002.pdf, ...が作成される）
-    ./create_pdf.sh "$HOME/Downloads/mybook" "$HOME/Downloads/mybook_combined.pdf" 50
+    ./create_pdf.sh "$HOME/Downloads/mybook" "$HOME/Downloads/mybook_combined.pdf" --pages-per-pdf 50
     ```
 2.  スクリプトがフォルダ内のPNGファイルを処理し、指定したパスにPDFファイルとして保存します。
     - ページ分割を指定した場合、複数のPDFファイルが作成されます。
     - ページ分割を指定しない場合、単一のPDFファイルが作成されます。
 3.  完了すると、指定した出力先にPDFファイルが作成されます。
 
+**`--ocr` の補足**
+
+- OCRの精度を保つため、`create_pdf.sh` 内の圧縮設定は「圧縮なし」のままにしてください。解像度を落とす圧縮設定はOCRの誤認識を増やします。
+- 日本語グリフを持つフォント（NotoSansJP など）が未導入だと、ocrmypdf が警告を出し、テキストレイヤーは不可視で埋め込まれます。検索・コピー・LLMへの入力には支障ありませんが、ビューアで本文を選択したときにハイライトが空白に見えます。気になる場合は NotoSansJP を導入してください。
+- 目安として、543ページの書籍でPDF生成とOCRを合わせて約3分かかります。
+
 ## 翻訳の容量制限になってしまったために分割したい
-qpdfを活用する。
+qpdfを活用する。OCR付きにしたい場合は、先に `--ocr` で1つのPDFを作ってから分割する。
 
 ```bash
 brew install qpdf
