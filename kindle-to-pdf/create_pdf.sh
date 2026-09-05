@@ -17,17 +17,38 @@ convert_to_pdf() {
     # magick "${input_files[@]}" -filter Lanczos -colorspace sRGB -resize 80% -quality 62 -sampling-factor 4:2:0 -strip -compress jpeg "$output_file"
 }
 
-# 位置引数の数をチェック
-if [ $# -lt 2 ] || [ $# -gt 3 ]; then
-    echo "Usage: $0 <input_dir> <output_pdf> [pages_per_pdf]"
-    echo "  pages_per_pdf: Optional. Number of pages per PDF file."
-    echo "                 If not specified, all pages will be combined into one PDF."
+usage() {
+    echo "Usage: $0 <input_dir> <output_pdf> [--pages-per-pdf N]"
+    echo "  --pages-per-pdf N: Optional. Number of pages per PDF file."
+    echo "                     If not specified, all pages will be combined into one PDF."
     exit 1
-fi
+}
 
-INPUT_DIR="$1"
-OUTPUT_PDF="$2"
-PAGES_PER_PDF="$3"
+POSITIONAL=()
+PAGES_PER_PDF=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --pages-per-pdf)
+            [ $# -ge 2 ] || usage
+            PAGES_PER_PDF="$2"
+            shift 2
+            ;;
+        --*)
+            echo "Error: Unknown option '$1'"
+            usage
+            ;;
+        *)
+            POSITIONAL+=("$1")
+            shift
+            ;;
+    esac
+done
+
+[ ${#POSITIONAL[@]} -eq 2 ] || usage
+
+INPUT_DIR="${POSITIONAL[0]}"
+OUTPUT_PDF="${POSITIONAL[1]}"
 
 # 入力ディレクトリ存在チェック
 if [ ! -d "$INPUT_DIR" ]; then
@@ -49,7 +70,7 @@ if [ -z "$PAGES_PER_PDF" ]; then
 else
     # 数値チェック
     if ! [[ "$PAGES_PER_PDF" =~ ^[0-9]+$ ]] || [ "$PAGES_PER_PDF" -le 0 ]; then
-        echo "Error: pages_per_pdf must be a positive integer."
+        echo "Error: --pages-per-pdf must be a positive integer."
         exit 1
     fi
 fi
