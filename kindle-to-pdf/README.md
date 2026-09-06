@@ -17,8 +17,15 @@ macOS上でKindle for Macアプリを利用し、表示されている書籍の�
 
 - [ImageMagick](https://imagemagick.org/)
    - PNG画像からPDFへの変換・結合に使用
-- [OCRmyPDF](https://ocrmypdf.readthedocs.io/)（`--ocr` を使う場合のみ）
-   - PDFへのテキストレイヤー付与に使用。OCRエンジンの Tesseract と日本語の言語データも一緒に入る
+- 以下は `--ocr` を使う場合のみ
+   - [uv](https://docs.astral.sh/uv/)
+      - `vision_ocr.py` の実行環境（[OCRmyPDF](https://ocrmypdf.readthedocs.io/) と [ocrmac](https://github.com/straussmaximilian/ocrmac) のPythonパッケージ）を初回実行時に自動で用意する
+   - [Ghostscript](https://www.ghostscript.com/)
+      - OCRmyPDF がページ画像のラスタライズに使用
+   - [Tesseract](https://github.com/tesseract-ocr/tesseract)
+      - OCRエンジンとしては使わないが、OCRmyPDF の起動時チェックでバイナリの存在が必要
+
+OCRエンジンには macOS 標準の Vision フレームワークを使うため、macOS でのみ動作します。
 
 ## インストール
 
@@ -28,7 +35,7 @@ Homebrewを使用して必要な依存関係をインストールします。
 brew install imagemagick
 
 # --ocr を使う場合
-brew install ocrmypdf
+brew install uv ghostscript tesseract
 ```
 
 ## 使い方
@@ -91,9 +98,11 @@ brew install ocrmypdf
 
 **`--ocr` の補足**
 
+- OCRは `vision_ocr.py` が macOS 標準の Vision フレームワークで行い、OCRmyPDF のプラグインとしてテキストレイヤーを埋め込みます。Tesseract は日本語を細かい単語に分割して配置するため、抽出したテキストの文字間に空白が入り、太字の見出しも崩れやすい問題がありました。Vision は行単位で認識するのでこれらが起きません。
+- 見開き（2ページ横並び）のスクリーンショットでは、抽出したテキストの行が左右ページで交互になることがあります。段組の分割は行っていないためです。読み順が重要な場合は Kindle を1ページ表示にして撮影してください。
 - OCRの精度を保つため、`create_pdf.sh` 内の圧縮設定は「圧縮なし」のままにしてください。解像度を落とす圧縮設定はOCRの誤認識を増やします。
 - 日本語グリフを持つフォント（NotoSansJP など）が未導入だと、ocrmypdf が警告を出し、テキストレイヤーは不可視で埋め込まれます。検索・コピー・LLMへの入力には支障ありませんが、ビューアで本文を選択したときにハイライトが空白に見えます。気になる場合は NotoSansJP を導入してください。
-- 目安として、543ページの書籍でPDF生成とOCRを合わせて約3分かかります。
+- 目安として、見開き12ページのPDFのOCRに約25秒かかります（1ページあたり約2秒）。初回実行時は uv による Python パッケージの取得で追加の時間がかかります。
 
 ## 翻訳の容量制限になってしまったために分割したい
 qpdfを活用する。OCR付きにしたい場合は、先に `--ocr` で1つのPDFを作ってから分割する。

@@ -17,15 +17,16 @@ convert_to_pdf() {
     # magick "${input_files[@]}" -filter Lanczos -colorspace sRGB -resize 80% -quality 62 -sampling-factor 4:2:0 -strip -compress jpeg "$output_file"
 }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # PDFにOCRでテキストレイヤーを付与する関数
 # 使用方法: add_ocr <input_pdf> <output_pdf>
-# 言語は横書き日本語+英語で固定。縦書き対応が必要になったらここで -l と --tesseract-pagesegmode を変える
+# OCRエンジンはmacOS標準のVision（言語設定は vision_ocr.py 側）
 add_ocr() {
     local input_pdf="$1"
     local output_pdf="$2"
 
-    # --output-type pdf を外すとPDF/A変換で画像が再エンコードされ、convert_to_pdf で調整した画質が変わる
-    ocrmypdf -l jpn+eng --output-type pdf --skip-text --jobs "$(sysctl -n hw.ncpu)" "$input_pdf" "$output_pdf"
+    uv run "$SCRIPT_DIR/vision_ocr.py" "$input_pdf" "$output_pdf"
 }
 
 usage() {
@@ -73,10 +74,15 @@ if [ ! -d "$INPUT_DIR" ]; then
     exit 1
 fi
 
-if [ "$OCR" = true ] && ! command -v ocrmypdf >/dev/null 2>&1; then
-    echo "Error: ocrmypdf is required for --ocr but not installed."
-    echo "  brew install ocrmypdf"
-    exit 1
+if [ "$OCR" = true ]; then
+    # tesseract はOCRには使わないが、ocrmypdf の起動時チェックがバイナリの存在を要求する
+    for cmd in uv gs tesseract; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            echo "Error: $cmd is required for --ocr but not installed."
+            echo "  brew install uv ghostscript tesseract"
+            exit 1
+        fi
+    done
 fi
 
 # OCR時はOCRなしの中間PDFをここに書き、失敗時も含めて終了時に削除する
@@ -150,7 +156,7 @@ for ((i=0; i<${#PNG_FILES[@]}; i+=PAGES_PER_PDF)); do
 
     if [ "$OCR" = true ]; then
         if ! add_ocr "$CONVERTED_FILE" "$OUTPUT_FILE"; then
-            echo "Error: Failed to add OCR text layer to $OUTPUT_FILE with ocrmypdf."
+            echo "Error: Failed to add OCR text layer to $OUTPUT_FILE with vision_ocr.py."
             exit 1
         fi
         rm -f "$CONVERTED_FILE"
