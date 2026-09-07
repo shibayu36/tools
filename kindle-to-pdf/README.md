@@ -59,11 +59,11 @@ brew install uv ghostscript tesseract
 
     **実行例:**
     ```bash
-    # ~/Downloads/mybook フォルダに最大200ページ撮影 (右から左へページめくり)
-    osascript kindle-screenshot.applescript "$HOME/Downloads/mybook" --pages=200
+    # ~/Downloads/mybook/intermediate フォルダに最大200ページ撮影 (右から左へページめくり)
+    osascript kindle-screenshot.applescript "$HOME/Downloads/mybook/intermediate" --pages=200
 
-    # ~/Documents/anotherbook フォルダに最大150ページ撮影 (左から右へページめくり)
-    osascript kindle-screenshot.applescript "$HOME/Documents/anotherbook" --pages=150 --left-to-right
+    # ~/Documents/anotherbook/intermediate フォルダに最大150ページ撮影 (左から右へページめくり)
+    osascript kindle-screenshot.applescript "$HOME/Documents/anotherbook/intermediate" --pages=150 --left-to-right
     ```
 3.  スクリプトが自動的にページめくりとスクリーンショット撮影を開始します。
 4.  撮影を途中で終了したい場合は、`.` (ピリオド) キーを押し続けてください。スクリプトが停止します。
@@ -76,20 +76,23 @@ brew install uv ghostscript tesseract
     ./create_pdf.sh [スクリーンショット保存フォルダパス] [出力PDFファイルパス] [--ocr] [--pages-per-pdf <1PDFあたりのページ数>]
     ```
     - `[スクリーンショット保存フォルダパス]`: (必須) ステップ1でスクリーンショットを保存し、不要なファイルを削除したフォルダのパスを指定します。
-    - `[出力PDFファイルパス]`: (必須) 結合されたPDFファイルの出力パスを指定します（例: `~/Downloads/combined_book.pdf`）。
+    - `[出力PDFファイルパス]`: (任意) 結合されたPDFファイルの出力パスを指定します（例: `~/Downloads/combined_book.pdf`）。省略した場合、スクリーンショット保存フォルダの親フォルダに、親フォルダ名の `.pdf` を作成します（例: `~/Downloads/mybook/intermediate` を指定すると `~/Downloads/mybook/mybook.pdf`）。
     - `--ocr`: (任意) OCRで本文のテキストレイヤーを付与します。横書き日本語と英語を認識対象とします。LLMに読ませたり、ビューアで本文を検索・コピーしたりできるようになります。ページ分割と併用した場合、分割された各PDFすべてにテキストレイヤーが付きます。
     - `--pages-per-pdf <1PDFあたりのページ数>`: (任意) 1つのPDFファイルに含めるページ数を指定します。指定しない場合、すべてのページが1つのPDFに結合されます。指定した場合、複数のPDFファイルが作成され、ファイル名に連番（例: `_001.pdf`, `_002.pdf`）が付きます。
 
     **実行例:**
     ```bash
-    # すべてのページを1つのPDFに生成
-    ./create_pdf.sh "$HOME/Downloads/mybook" "$HOME/Downloads/mybook_combined.pdf"
+    # すべてのページを1つのPDFに生成（~/Downloads/mybook/mybook.pdf が作成される）
+    ./create_pdf.sh "$HOME/Downloads/mybook/intermediate"
+
+    # 出力先を明示して生成
+    ./create_pdf.sh "$HOME/Downloads/mybook/intermediate" "$HOME/Downloads/mybook_combined.pdf"
 
     # OCR付きで1つのPDFに生成
-    ./create_pdf.sh "$HOME/Downloads/mybook" "$HOME/Downloads/mybook_combined.pdf" --ocr
+    ./create_pdf.sh "$HOME/Downloads/mybook/intermediate" --ocr
 
-    # 50ページごとに分割してPDFを生成（mybook_combined_001.pdf, mybook_combined_002.pdf, ...が作成される）
-    ./create_pdf.sh "$HOME/Downloads/mybook" "$HOME/Downloads/mybook_combined.pdf" --pages-per-pdf 50
+    # 50ページごとに分割してPDFを生成（mybook_001.pdf, mybook_002.pdf, ...が作成される）
+    ./create_pdf.sh "$HOME/Downloads/mybook/intermediate" --pages-per-pdf 50
     ```
 2.  スクリプトがフォルダ内のPNGファイルを処理し、指定したパスにPDFファイルとして保存します。
     - ページ分割を指定した場合、複数のPDFファイルが作成されます。

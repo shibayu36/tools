@@ -30,7 +30,9 @@ add_ocr() {
 }
 
 usage() {
-    echo "Usage: $0 <input_dir> <output_pdf> [--ocr] [--pages-per-pdf N]"
+    echo "Usage: $0 <input_dir> [output_pdf] [--ocr] [--pages-per-pdf N]"
+    echo "  output_pdf:        Optional. Defaults to <parent_dir>/<parent_dir_name>.pdf of input_dir."
+    echo "                     e.g. input_dir=~/Downloads/mybook/intermediate -> ~/Downloads/mybook/mybook.pdf"
     echo "  --ocr:             Optional. Add a searchable text layer with OCR (Japanese + English)."
     echo "  --pages-per-pdf N: Optional. Number of pages per PDF file."
     echo "                     If not specified, all pages will be combined into one PDF."
@@ -63,15 +65,22 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-[ ${#POSITIONAL[@]} -eq 2 ] || usage
+[ ${#POSITIONAL[@]} -ge 1 ] && [ ${#POSITIONAL[@]} -le 2 ] || usage
 
 INPUT_DIR="${POSITIONAL[0]}"
-OUTPUT_PDF="${POSITIONAL[1]}"
+OUTPUT_PDF="${POSITIONAL[1]:-}"
 
 # 入力ディレクトリ存在チェック
 if [ ! -d "$INPUT_DIR" ]; then
     echo "Error: Input directory '$INPUT_DIR' not found."
     exit 1
+fi
+
+# 出力先省略時は、入力ディレクトリの親に親ディレクトリ名のPDFを作る
+# （例: ~/Downloads/mybook/intermediate -> ~/Downloads/mybook/mybook.pdf）
+if [ -z "$OUTPUT_PDF" ]; then
+    PARENT_DIR="$(dirname "$(cd "$INPUT_DIR" && pwd)")"
+    OUTPUT_PDF="$PARENT_DIR/$(basename "$PARENT_DIR").pdf"
 fi
 
 if [ "$OCR" = true ]; then
