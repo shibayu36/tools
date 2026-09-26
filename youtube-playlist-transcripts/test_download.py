@@ -1,6 +1,7 @@
 import argparse
 import contextlib
 import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -78,13 +79,16 @@ class PlaylistUrlTest(unittest.TestCase):
                 download.playlist_url(url)
 
 
-class LoadVideosTest(unittest.TestCase):
+class LoadPlaylistTest(unittest.TestCase):
     @patch("download.RateLimitedYoutubeDL")
     def test_only_playlist_metadata_is_requested(self, downloader):
         videos = [{"id": VIDEO_ID, "title": "動画"}]
+        playlist_info = {"_type": "playlist", "title": "プレイリスト名", "entries": videos}
         instance = downloader.return_value.__enter__.return_value
-        instance.extract_info.return_value = {"_type": "playlist", "entries": videos}
-        self.assertEqual(download.load_videos(PLAYLIST_URL, download.RequestControl()), videos)
+        instance.extract_info.return_value = playlist_info
+        playlist, entries = download.load_playlist(PLAYLIST_URL, download.RequestControl())
+        self.assertEqual(playlist, playlist_info)
+        self.assertEqual(entries, videos)
         instance.extract_info.assert_called_once_with(PLAYLIST_URL, download=False)
         options = downloader.call_args.args[0]
         self.assertEqual(options["extract_flat"], "in_playlist")
@@ -97,7 +101,96 @@ class LoadVideosTest(unittest.TestCase):
         for value in (None, {"_type": "video"}, {"_type": "playlist"}):
             instance.extract_info.return_value = value
             with self.subTest(value=value), self.assertRaises(ValueError):
-                download.load_videos(PLAYLIST_URL, download.RequestControl())
+                download.load_playlist(PLAYLIST_URL, download.RequestControl())
+
+
+class PlaylistIdFromUrlTest(unittest.TestCase):
+    def test_list_query_parameter_is_extracted(self):
+        self.assertEqual(download.playlist_id_from_url(PLAYLIST_URL), "PLexample")
+
+    def test_missing_list_parameter_is_null(self):
+        self.assertIsNone(download.playlist_id_from_url("https://www.youtube.com/playlist"))
+
+
+class FormatUploadDateTest(unittest.TestCase):
+    def test_yyyymmdd_is_converted_to_iso8601(self):
+        self.assertEqual(download.format_upload_date("20240131"), "2024-01-31")
+
+    def test_missing_or_unparsable_value_is_null(self):
+        for value in (None, "", "2024-01-31", "2024013"):
+            with self.subTest(value=value):
+                self.assertIsNone(download.format_upload_date(value))
+
+
+class NewVideoEntryTest(unittest.TestCase):
+    def test_defaults_are_null_and_status_is_skipped(self):
+        self.assertEqual(
+            download.new_video_entry(3, VIDEO_ID, "タイトル"),
+            {
+                "index": 3,
+                "video_id": VIDEO_ID,
+                "title": "タイトル",
+                "url": f"https://www.youtube.com/watch?v={VIDEO_ID}",
+                "upload_date": None,
+                "channel": None,
+                "status": "skipped",
+                "language_code": None,
+                "transcript_file": None,
+            },
+        )
+
+    def test_missing_video_id_leaves_id_and_url_null(self):
+        entry = download.new_video_entry(1, None, "タイトル")
+        self.assertIsNone(entry["video_id"])
+        self.assertIsNone(entry["url"])
+
+
+class RenderManifestTest(unittest.TestCase):
+    def test_manifest_fields_and_video_order_are_preserved(self):
+        videos = [
+            download.new_video_entry(1, VIDEO_ID, "動画1"),
+            download.new_video_entry(2, NEXT_ID, "動画2"),
+        ]
+        manifest = json.loads(
+            download.render_manifest(
+                "PLexample",
+                PLAYLIST_URL,
+                "プレイリスト名",
+                "チャンネル名",
+                "https://www.youtube.com/channel/UCxxxx",
+                videos,
+            )
+        )
+        self.assertEqual(
+            manifest,
+            {
+                "playlist_id": "PLexample",
+                "playlist_url": PLAYLIST_URL,
+                "playlist_title": "プレイリスト名",
+                "channel": "チャンネル名",
+                "channel_url": "https://www.youtube.com/channel/UCxxxx",
+                "videos": videos,
+            },
+        )
+        self.assertEqual([video["video_id"] for video in manifest["videos"]], [VIDEO_ID, NEXT_ID])
+
+    def test_output_is_utf8_and_pretty_printed(self):
+        content = download.render_manifest(None, PLAYLIST_URL, "日本語タイトル", None, None, [])
+        self.assertIn("日本語タイトル", content)
+        self.assertNotIn("\\u", content)
+        self.assertIn("\n  ", content)
+
+
+class SaveManifestTest(unittest.TestCase):
+    def test_failed_replacement_preserves_existing_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "playlist.json"
+            path.write_text("既存のマニフェスト", encoding="utf-8")
+            with patch.object(Path, "replace", side_effect=OSError("disk error")):
+                with self.assertRaises(OSError):
+                    download.save_manifest(path, "{}")
+            self.assertEqual(path.read_text(encoding="utf-8"), "既存のマニフェスト")
+            self.assertEqual(list(Path(directory).iterdir()), [path])
 
 
 class MarkdownTest(unittest.TestCase):
@@ -141,11 +234,17 @@ class DownloadPlaylistTest(unittest.TestCase):
         self.stderr = io.StringIO()
         self.enterContext(contextlib.redirect_stdout(self.stdout))
         self.enterContext(contextlib.redirect_stderr(self.stderr))
-        self.loader = self.enterContext(patch("download.load_videos"))
-        self.loader.return_value = [
+        self.playlist_info = {
+            "title": "プレイリスト名",
+            "channel": "チャンネル名",
+            "channel_url": "https://www.youtube.com/channel/UCxxxx",
+        }
+        self.videos = [
             {"id": VIDEO_ID, "title": "日本語 / 同じタイトル"},
             {"id": NEXT_ID, "title": "日本語 / 同じタイトル"},
         ]
+        self.loader = self.enterContext(patch("download.load_playlist"))
+        self.loader.return_value = (self.playlist_info, self.videos)
         self.api = self.enterContext(patch("download.YouTubeTranscriptApi")).return_value
         self.api.list.side_effect = [available(), available(video_id=NEXT_ID)]
         downloader = self.enterContext(patch("download.RateLimitedYoutubeDL"))
@@ -161,7 +260,7 @@ class DownloadPlaylistTest(unittest.TestCase):
         self.assertIn("保存: 2 / 字幕なし: 0 / 失敗: 0", self.stdout.getvalue())
 
     def test_cli_uses_original_title_instead_of_playlist_translation(self):
-        self.loader.return_value[0]["title"] = "A translated title..."
+        self.videos[0]["title"] = "A translated title..."
         self.assertEqual(download.main([PLAYLIST_URL, "--output", str(self.output)]), 0)
         text = (self.output / f"{VIDEO_ID}.ja.md").read_text(encoding="utf-8")
         self.assertTrue(text.startswith("# 元の日本語 / 同じタイトル\n"))
@@ -190,7 +289,7 @@ class DownloadPlaylistTest(unittest.TestCase):
                 self.assertIn("字幕なし: 1 / 失敗: 0", self.stdout.getvalue())
 
     def test_request_or_parse_failure_stops_and_preserves_saved_files(self):
-        self.loader.return_value.append({"id": "wxyz0123456", "title": "未処理"})
+        self.videos.append({"id": "wxyz0123456", "title": "未処理"})
         for error in (
             RequestBlocked(NEXT_ID),
             requests.Timeout("timeout"),
@@ -215,10 +314,10 @@ class DownloadPlaylistTest(unittest.TestCase):
         self.assertFalse(self.output.exists())
 
     def test_invalid_video_id_cannot_escape_output_directory(self):
-        self.loader.return_value = [{"id": "../outside", "title": "動画"}]
+        self.loader.return_value = (self.playlist_info, [{"id": "../outside", "title": "動画"}])
         self.assertEqual(self.run_download(), 1)
         self.api.list.assert_not_called()
-        self.assertEqual(list(self.output.iterdir()), [])
+        self.assertEqual([path.name for path in self.output.iterdir()], ["playlist.json"])
 
     def test_output_write_failure_is_reported(self):
         with patch("download.save_markdown", side_effect=OSError("disk full")):
@@ -226,10 +325,12 @@ class DownloadPlaylistTest(unittest.TestCase):
         self.assertIn("disk full", self.stderr.getvalue())
 
     def test_empty_playlist_finishes_without_subtitle_requests(self):
-        self.loader.return_value = []
+        self.loader.return_value = (self.playlist_info, [])
         self.assertEqual(self.run_download(), 0)
         self.api.list.assert_not_called()
         self.assertIn("保存: 0 / 字幕なし: 0 / 失敗: 0", self.stdout.getvalue())
+        manifest = json.loads((self.output / "playlist.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["videos"], [])
 
     def test_original_language_missing_does_not_download_a_translation(self):
         self.api.list.side_effect = [available(language="en", generated=False), available(NEXT_ID)]
@@ -269,7 +370,7 @@ class DownloadPlaylistTest(unittest.TestCase):
         self.downloader.extract_info.side_effect = [{"id": VIDEO_ID, "title": "動画"}]
         self.assertEqual(self.run_download(), 1)
         self.assertIn("元言語を一意に判定できませんでした", self.stderr.getvalue())
-        self.assertEqual(list(self.output.iterdir()), [])
+        self.assertEqual([path.name for path in self.output.iterdir()], ["playlist.json"])
 
     def test_empty_subtitle_list_is_skipped_without_metadata_request(self):
         self.api.list.side_effect = [TranscriptList(VIDEO_ID, {}, {}, []), available(NEXT_ID)]
@@ -287,7 +388,91 @@ class DownloadPlaylistTest(unittest.TestCase):
         self.downloader.extract_info.side_effect = [metadata(language="../../en")]
         self.assertEqual(self.run_download(), 1)
         self.assertIn("言語コードが不正", self.stderr.getvalue())
-        self.assertEqual(list(self.output.iterdir()), [])
+        self.assertEqual([path.name for path in self.output.iterdir()], ["playlist.json"])
+
+    def read_manifest(self):
+        return json.loads((self.output / "playlist.json").read_text(encoding="utf-8"))
+
+    def test_manifest_uses_playlist_metadata_and_saved_video_order(self):
+        self.assertEqual(self.run_download(), 0)
+        manifest = self.read_manifest()
+        self.assertEqual(manifest["playlist_id"], "PLexample")
+        self.assertEqual(manifest["playlist_url"], PLAYLIST_URL)
+        self.assertEqual(manifest["playlist_title"], "プレイリスト名")
+        self.assertEqual(manifest["channel"], "チャンネル名")
+        self.assertEqual(manifest["channel_url"], "https://www.youtube.com/channel/UCxxxx")
+        self.assertEqual(
+            manifest["videos"],
+            [
+                {
+                    "index": 1,
+                    "video_id": VIDEO_ID,
+                    "title": "元の日本語 / 同じタイトル",
+                    "url": f"https://www.youtube.com/watch?v={VIDEO_ID}",
+                    "upload_date": None,
+                    "channel": None,
+                    "status": "saved",
+                    "language_code": "ja",
+                    "transcript_file": f"{VIDEO_ID}.ja.md",
+                },
+                {
+                    "index": 2,
+                    "video_id": NEXT_ID,
+                    "title": "元の日本語 / 同じタイトル",
+                    "url": f"https://www.youtube.com/watch?v={NEXT_ID}",
+                    "upload_date": None,
+                    "channel": None,
+                    "status": "saved",
+                    "language_code": "ja",
+                    "transcript_file": f"{NEXT_ID}.ja.md",
+                },
+            ],
+        )
+
+    def test_manifest_records_upload_date_and_channel_from_video_metadata(self):
+        video_metadata = metadata()
+        video_metadata["upload_date"] = "20240131"
+        video_metadata["channel"] = "動画のチャンネル"
+        self.downloader.extract_info.side_effect = [video_metadata, metadata(NEXT_ID)]
+        self.assertEqual(self.run_download(), 0)
+        manifest = self.read_manifest()
+        self.assertEqual(manifest["videos"][0]["upload_date"], "2024-01-31")
+        self.assertEqual(manifest["videos"][0]["channel"], "動画のチャンネル")
+
+    def test_manifest_marks_missing_subtitles_as_no_transcript(self):
+        self.api.list.side_effect = [TranscriptsDisabled(VIDEO_ID), available(video_id=NEXT_ID)]
+        self.downloader.extract_info.side_effect = [metadata(NEXT_ID)]
+        self.assertEqual(self.run_download(), 0)
+        manifest = self.read_manifest()
+        record = next(v for v in manifest["videos"] if v["video_id"] == VIDEO_ID)
+        self.assertEqual(record["status"], "no_transcript")
+        self.assertIsNone(record["language_code"])
+        self.assertIsNone(record["transcript_file"])
+
+    def test_manifest_marks_failure_and_leaves_remaining_videos_skipped(self):
+        self.videos.append({"id": "wxyz0123456", "title": "未処理"})
+        self.api.list.side_effect = [available(), download.RateLimitError("HTTP 429")]
+        self.downloader.extract_info.side_effect = [metadata()]
+        self.assertEqual(self.run_download(), 1)
+        manifest = self.read_manifest()
+        statuses = {video["video_id"]: video["status"] for video in manifest["videos"]}
+        self.assertEqual(statuses[VIDEO_ID], "saved")
+        self.assertEqual(statuses[NEXT_ID], "failed")
+        self.assertEqual(statuses["wxyz0123456"], "skipped")
+
+    def test_manifest_is_written_before_a_keyboard_interrupt_propagates(self):
+        self.api.list.side_effect = [available(), KeyboardInterrupt()]
+        with self.assertRaises(KeyboardInterrupt):
+            self.run_download()
+        manifest = self.read_manifest()
+        statuses = {video["video_id"]: video["status"] for video in manifest["videos"]}
+        self.assertEqual(statuses[VIDEO_ID], "saved")
+        self.assertEqual(statuses[NEXT_ID], "skipped")
+
+    def test_manifest_is_not_written_when_playlist_cannot_be_loaded(self):
+        self.loader.side_effect = DownloadError("playlist unavailable")
+        self.assertEqual(self.run_download(), 1)
+        self.assertFalse((self.output / "playlist.json").exists())
 
 
 class OriginalLanguageTest(unittest.TestCase):

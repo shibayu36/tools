@@ -25,6 +25,44 @@ uv run youtube-playlist-transcripts/download.py \
 
 同じ動画・言語で再実行すると、取得が成功したファイルを上書きします。
 
+### playlist.json
+
+全動画の処理後（致命的エラーや`Ctrl+C`による中断時も、そこまでの結果で）に`transcripts/playlist.json`へマニフェストを保存します。プレイリスト名・チャンネル名・動画の順序・公開日・字幕ファイル名などを、他のスクリプトから決定論的に読み取れるようにするためのものです。取得できなかった項目は`null`にします。
+
+```json
+{
+  "playlist_id": "PLxxxx",
+  "playlist_url": "https://www.youtube.com/playlist?list=PLxxxx",
+  "playlist_title": "…",
+  "channel": "…",
+  "channel_url": "…",
+  "videos": [
+    {
+      "index": 1,
+      "video_id": "abc",
+      "title": "…",
+      "url": "https://www.youtube.com/watch?v=abc",
+      "upload_date": "2024-01-31",
+      "channel": "…",
+      "status": "saved",
+      "language_code": "ja",
+      "transcript_file": "abc.ja.md"
+    }
+  ]
+}
+```
+
+`videos[].status`は次のいずれかです。
+
+| status | 意味 |
+| --- | --- |
+| `saved` | Markdownを保存した |
+| `no_transcript` | 元言語の字幕がなくスキップした |
+| `failed` | 取得・保存に失敗した |
+| `skipped` | 中断により未処理のまま終わった |
+
+`status`が`saved`以外の`upload_date`・`channel`・`language_code`・`transcript_file`は`null`です。
+
 ## 字幕の選択とエラー
 
 - 元言語の手動字幕を優先し、なければ同じ言語の自動生成字幕を取得します。
