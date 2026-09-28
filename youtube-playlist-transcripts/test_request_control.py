@@ -9,6 +9,7 @@ from yt_dlp.networking import Response
 from yt_dlp.networking.exceptions import HTTPError
 
 from request_control import (
+    MAX_LOG_BODY_BYTES,
     RateLimitError,
     RateLimitedSession,
     RateLimitedYoutubeDL,
@@ -36,13 +37,13 @@ class FakeClock:
         self.elapsed += seconds
 
 
-def response(status=200, headers=None):
+def response(status=200, headers=None, body=b""):
     result = requests.Response()
     result.status_code = status
     result.headers.update(headers or {})
     result.raw = io.BytesIO()
     result.raw.release_conn = result.raw.close
-    result._content = b""
+    result._content = body
     result._content_consumed = True
     return result
 
@@ -87,8 +88,8 @@ class RequestControlTest(unittest.TestCase):
             RateLimitedYoutubeDL({"quiet": True, "cachedir": False}, self.control)
         )
 
-    def ytdlp_response(self, status=200, headers=None):
-        result = Response(io.BytesIO(), URL, headers or {}, status=status)
+    def ytdlp_response(self, status=200, headers=None, body=b"", url=URL):
+        result = Response(io.BytesIO(body), url, headers or {}, status=status)
         self.addCleanup(result.close)
         return result
 
@@ -159,12 +160,56 @@ class RequestControlTest(unittest.TestCase):
                 session.get(URL)
         self.assertEqual(self.starts, [0, 30, 90, 210])
         self.assertTrue(all(item.raw.closed for item in limited))
+        self.assertEqual(self.stderr.getvalue().count("HTTP 429 詳細"), 4)
+
+    def test_requests_logs_rate_limit_details_without_query_or_cookies(self):
+        headers = {
+            "Retry-After": "45",
+            "Content-Type": "application/json",
+            "Date": "Sat, 26 Sep 2026 00:00:00 GMT",
+            "Server": "test-server",
+            "Set-Cookie": "session=private-cookie",
+        }
+        self.requests_responses(
+            response(429, headers, b'{"error":"Too Many Requests"}'), response()
+        )
+        with RateLimitedSession(self.control) as session:
+            session.get("https://www.youtube.com/api/timedtext?v=abcdefghijk&sig=private-token")
+        log = self.stderr.getvalue()
+        self.assertIn("HTTP 429 詳細 (youtube-transcript-api)", log)
+        self.assertIn("接続先: https://www.youtube.com/api/timedtext\n", log)
+        self.assertIn('Retry-After: "45"', log)
+        self.assertIn('Content-Type: "application/json"', log)
+        self.assertIn('Date: "Sat, 26 Sep 2026 00:00:00 GMT"', log)
+        self.assertIn('Server: "test-server"', log)
+        self.assertIn("Too Many Requests", log)
+        self.assertNotIn("private-token", log)
+        self.assertNotIn("private-cookie", log)
+
+    def test_requests_logs_missing_retry_after_and_empty_body(self):
+        self.requests_responses(response(429), response())
+        with RateLimitedSession(self.control) as session:
+            session.get(URL)
+        self.assertIn("Retry-After: なし", self.stderr.getvalue())
+        self.assertIn("本文: 空", self.stderr.getvalue())
+        self.assertEqual(self.starts, [0, 30])
+
+    def test_requests_truncates_and_escapes_logged_body(self):
+        body = b"blocked\n\x1b[31m" + b"x" * MAX_LOG_BODY_BYTES + b"hidden-tail"
+        self.requests_responses(response(429, body=body), response())
+        with RateLimitedSession(self.control) as session:
+            session.get(URL)
+        log = self.stderr.getvalue()
+        self.assertIn(r"blocked\n\u001b[31m", log)
+        self.assertIn(f"先頭{MAX_LOG_BODY_BYTES}バイトで省略", log)
+        self.assertNotIn("hidden-tail", log)
 
     def test_requests_does_not_retry_other_status_codes(self):
         self.requests_responses(response(403))
         with RateLimitedSession(self.control) as session:
             self.assertEqual(session.get(URL).status_code, 403)
         self.assertEqual(self.starts, [0])
+        self.assertEqual(self.stderr.getvalue(), "")
 
     def test_ytdlp_respects_retry_after_date(self):
         date = formatdate(self.clock.time() + 45, usegmt=True)
@@ -185,6 +230,44 @@ class RequestControlTest(unittest.TestCase):
             downloader.urlopen(URL)
         self.assertEqual(self.starts, [0, 30, 90, 210])
         self.assertTrue(all(item.fp.closed for item in limited))
+        self.assertEqual(self.stderr.getvalue().count("HTTP 429 詳細"), 4)
+
+    def test_ytdlp_logs_response_url_headers_and_body(self):
+        limited = self.ytdlp_response(
+            429,
+            {"Content-Type": "text/html", "Set-Cookie": "session=private-cookie"},
+            "<html>取得制限</html>".encode(),
+            "https://www.youtube.com/sorry/index?continue=private-token",
+        )
+        self.ytdlp_responses(HTTPError(limited), self.ytdlp_response())
+        self.limited_ytdlp().urlopen(URL)
+        log = self.stderr.getvalue()
+        self.assertIn("HTTP 429 詳細 (yt-dlp)", log)
+        self.assertIn("接続先: https://www.youtube.com/sorry/index\n", log)
+        self.assertIn("Retry-After: なし", log)
+        self.assertIn('Content-Type: "text/html"', log)
+        self.assertIn("<html>取得制限</html>", log)
+        self.assertNotIn("private-token", log)
+        self.assertNotIn("private-cookie", log)
+        self.assertTrue(limited.fp.closed)
+
+    def test_ytdlp_bounds_body_read_and_handles_invalid_utf8(self):
+        limited = self.ytdlp_response(429, body=b"\xff" * (MAX_LOG_BODY_BYTES + 20))
+        self.ytdlp_responses(HTTPError(limited), self.ytdlp_response())
+        with patch.object(limited, "read", wraps=limited.read) as read:
+            self.limited_ytdlp().urlopen(URL)
+        read.assert_called_once_with(MAX_LOG_BODY_BYTES + 1)
+        self.assertIn("\ufffd", self.stderr.getvalue())
+        self.assertIn(f"先頭{MAX_LOG_BODY_BYTES}バイトで省略", self.stderr.getvalue())
+
+    def test_ytdlp_retries_even_when_reading_error_body_fails(self):
+        limited = self.ytdlp_response(429)
+        self.ytdlp_responses(HTTPError(limited), self.ytdlp_response())
+        with patch.object(limited.fp, "read", side_effect=OSError("broken connection")):
+            self.limited_ytdlp().urlopen(URL)
+        self.assertEqual(self.starts, [0, 30])
+        self.assertIn("本文: 読み取り失敗 (TransportError)", self.stderr.getvalue())
+        self.assertTrue(limited.fp.closed)
 
     def test_ytdlp_does_not_retry_other_status_codes(self):
         error = HTTPError(self.ytdlp_response(403))
