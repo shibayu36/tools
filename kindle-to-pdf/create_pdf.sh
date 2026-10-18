@@ -30,12 +30,23 @@ add_ocr() {
     uv run "$SCRIPT_DIR/vision_ocr.py" "$input_pdf" "$output_pdf" "$sidecar_txt"
 }
 
+# OCR済みのPDFと同名の.txtから、目次をもとに見出しを付けたMarkdownを作る関数
+# 使用方法: create_markdown <ocr_pdf>
+create_markdown() {
+    local ocr_pdf="$1"
+
+    uv run "$SCRIPT_DIR/ocr_to_markdown.py" "$ocr_pdf"
+}
+
 usage() {
-    echo "Usage: $0 <input_dir> [output_pdf] [--ocr] [--pages-per-pdf N]"
+    echo "Usage: $0 <input_dir> [output_pdf] [--ocr] [--no-markdown] [--pages-per-pdf N]"
     echo "  output_pdf:        Optional. Defaults to <parent_dir>/<parent_dir_name>.pdf of input_dir."
     echo "                     e.g. input_dir=~/Downloads/mybook/intermediate -> ~/Downloads/mybook/mybook.pdf"
     echo "  --ocr:             Optional. Add a searchable text layer with OCR (Japanese + English)."
     echo "                     The OCR text is also written next to each PDF as <name>.txt."
+    echo "                     A Markdown with headings from the table of contents is also written as <name>.md"
+    echo "                     (only when all pages are combined into one PDF)."
+    echo "  --no-markdown:     Optional. Skip creating the Markdown with --ocr."
     echo "  --pages-per-pdf N: Optional. Number of pages per PDF file."
     echo "                     If not specified, all pages will be combined into one PDF."
     exit 1
@@ -44,11 +55,16 @@ usage() {
 POSITIONAL=()
 PAGES_PER_PDF=""
 OCR=false
+MARKDOWN=true
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --ocr)
             OCR=true
+            shift
+            ;;
+        --no-markdown)
+            MARKDOWN=false
             shift
             ;;
         --pages-per-pdf)
@@ -94,6 +110,14 @@ if [ "$OCR" = true ]; then
             exit 1
         fi
     done
+    if [ "$MARKDOWN" = true ]; then
+        for cmd in claude pdftoppm; do
+            if ! command -v "$cmd" >/dev/null 2>&1; then
+                echo "Error: $cmd is required to create Markdown but not installed. Use --no-markdown to skip it."
+                exit 1
+            fi
+        done
+    fi
 fi
 
 # OCR時はOCRなしの中間PDFをここに書き、失敗時も含めて終了時に削除する
@@ -177,5 +201,15 @@ for ((i=0; i<${#PNG_FILES[@]}; i+=PAGES_PER_PDF)); do
 
     PDF_NUM=$((PDF_NUM + 1))
 done
+
+if [ "$OCR" = true ] && [ "$MARKDOWN" = true ]; then
+    # 目次は先頭のPDFにしかないため、分割したときはMarkdownを作らない
+    if [ "$IS_MULTI_PDF" = true ]; then
+        echo "Skipped creating Markdown because the PDF is split into multiple files."
+    elif ! create_markdown "$OUTPUT_PDF"; then
+        echo "Error: Failed to create Markdown from $OUTPUT_PDF with ocr_to_markdown.py."
+        exit 1
+    fi
+fi
 
 exit 0
