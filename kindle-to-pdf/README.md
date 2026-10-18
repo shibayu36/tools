@@ -79,11 +79,12 @@ brew install uv ghostscript tesseract poppler
 
 1.  ターミナルで、以下のコマンドを実行します。
     ```bash
-    ./create_pdf.sh [スクリーンショット保存フォルダパス] [出力PDFファイルパス] [--ocr] [--no-markdown] [--pages-per-pdf <1PDFあたりのページ数>]
+    ./create_pdf.sh [スクリーンショット保存フォルダパス] [出力PDFファイルパス] [--ocr] [--ocr-lang ja|en] [--no-markdown] [--pages-per-pdf <1PDFあたりのページ数>]
     ```
     - `[スクリーンショット保存フォルダパス]`: (必須) ステップ1でスクリーンショットを保存し、不要なファイルを削除したフォルダのパスを指定します。
     - `[出力PDFファイルパス]`: (任意) 結合されたPDFファイルの出力パスを指定します（例: `~/Downloads/combined_book.pdf`）。省略した場合、スクリーンショット保存フォルダの親フォルダに、親フォルダ名の `.pdf` を作成します（例: `~/Downloads/mybook/intermediate` を指定すると `~/Downloads/mybook/mybook.pdf`）。
     - `--ocr`: (任意) OCRで本文のテキストレイヤーを付与します。横書き日本語と英語を認識対象とします。LLMに読ませたり、ビューアで本文を検索・コピーしたりできるようになります。あわせて、OCR結果のテキストを出力PDFと同じ名前の `.txt` として書き出します（ページ区切りはフォームフィード）。ページ分割と併用した場合、分割された各PDFすべてにテキストレイヤーと `.txt` が付きます。さらに、目次の見出しと段落を付けたMarkdownを `.md` として書き出します（後述の「Markdownの作成」を参照）。
+    - `--ocr-lang ja|en`: (任意) `--ocr` で優先する本の言語を指定します。デフォルトは `ja` です。英語の本では `en` を指定してください。日本語優先のままだと、`,` や `(` が全角になる、単語間の空白が消える、`AI` が `Al` になるなどの誤認識が増えます。
     - `--no-markdown`: (任意) `--ocr` 時のMarkdownの作成を行いません。
     - `--pages-per-pdf <1PDFあたりのページ数>`: (任意) 1つのPDFファイルに含めるページ数を指定します。指定しない場合、すべてのページが1つのPDFに結合されます。指定した場合、複数のPDFファイルが作成され、ファイル名に連番（例: `_001.pdf`, `_002.pdf`）が付きます。
 
@@ -97,6 +98,9 @@ brew install uv ghostscript tesseract poppler
 
     # OCR付きで1つのPDFに生成
     ./create_pdf.sh "$HOME/Downloads/mybook/intermediate" --ocr
+
+    # 英語の本をOCR付きで生成
+    ./create_pdf.sh "$HOME/Downloads/mybook/intermediate" --ocr --ocr-lang en
 
     # 50ページごとに分割してPDFを生成（mybook_001.pdf, mybook_002.pdf, ...が作成される）
     ./create_pdf.sh "$HOME/Downloads/mybook/intermediate" --pages-per-pdf 50

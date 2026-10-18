@@ -20,14 +20,15 @@ convert_to_pdf() {
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # PDFにOCRでテキストレイヤーを付与し、OCR結果のテキストも書き出す関数
-# 使用方法: add_ocr <input_pdf> <output_pdf> <sidecar_txt>
+# 使用方法: add_ocr <input_pdf> <output_pdf> <sidecar_txt> <lang>
 # OCRエンジンはmacOS標準のVision（言語設定は vision_ocr.py 側）
 add_ocr() {
     local input_pdf="$1"
     local output_pdf="$2"
     local sidecar_txt="$3"
+    local lang="$4"
 
-    uv run "$SCRIPT_DIR/vision_ocr.py" "$input_pdf" "$output_pdf" "$sidecar_txt"
+    uv run "$SCRIPT_DIR/vision_ocr.py" "$input_pdf" "$output_pdf" "$sidecar_txt" --lang "$lang"
 }
 
 # OCR済みのPDFと同名の.txtから、目次をもとに見出しを付けたMarkdownを作る関数
@@ -39,13 +40,14 @@ create_markdown() {
 }
 
 usage() {
-    echo "Usage: $0 <input_dir> [output_pdf] [--ocr] [--no-markdown] [--pages-per-pdf N]"
+    echo "Usage: $0 <input_dir> [output_pdf] [--ocr] [--ocr-lang ja|en] [--no-markdown] [--pages-per-pdf N]"
     echo "  output_pdf:        Optional. Defaults to <parent_dir>/<parent_dir_name>.pdf of input_dir."
     echo "                     e.g. input_dir=~/Downloads/mybook/intermediate -> ~/Downloads/mybook/mybook.pdf"
     echo "  --ocr:             Optional. Add a searchable text layer with OCR (Japanese + English)."
     echo "                     The OCR text is also written next to each PDF as <name>.txt."
     echo "                     A Markdown with headings from the table of contents is also written as <name>.md"
     echo "                     (only when all pages are combined into one PDF)."
+    echo "  --ocr-lang ja|en:  Optional. Language of the book to prioritize in OCR. Defaults to ja."
     echo "  --no-markdown:     Optional. Skip creating the Markdown with --ocr."
     echo "  --pages-per-pdf N: Optional. Number of pages per PDF file."
     echo "                     If not specified, all pages will be combined into one PDF."
@@ -55,6 +57,7 @@ usage() {
 POSITIONAL=()
 PAGES_PER_PDF=""
 OCR=false
+OCR_LANG=ja
 MARKDOWN=true
 
 while [ $# -gt 0 ]; do
@@ -62,6 +65,11 @@ while [ $# -gt 0 ]; do
         --ocr)
             OCR=true
             shift
+            ;;
+        --ocr-lang)
+            [ $# -ge 2 ] || usage
+            OCR_LANG="$2"
+            shift 2
             ;;
         --no-markdown)
             MARKDOWN=false
@@ -84,6 +92,11 @@ while [ $# -gt 0 ]; do
 done
 
 [ ${#POSITIONAL[@]} -ge 1 ] && [ ${#POSITIONAL[@]} -le 2 ] || usage
+
+if [ "$OCR_LANG" != ja ] && [ "$OCR_LANG" != en ]; then
+    echo "Error: --ocr-lang must be ja or en."
+    exit 1
+fi
 
 INPUT_DIR="${POSITIONAL[0]}"
 OUTPUT_PDF="${POSITIONAL[1]:-}"
@@ -190,7 +203,7 @@ for ((i=0; i<${#PNG_FILES[@]}; i+=PAGES_PER_PDF)); do
     fi
 
     if [ "$OCR" = true ]; then
-        if ! add_ocr "$CONVERTED_FILE" "$OUTPUT_FILE" "${OUTPUT_FILE%.*}.txt"; then
+        if ! add_ocr "$CONVERTED_FILE" "$OUTPUT_FILE" "${OUTPUT_FILE%.*}.txt" "$OCR_LANG"; then
             echo "Error: Failed to add OCR text layer to $OUTPUT_FILE with vision_ocr.py."
             exit 1
         fi

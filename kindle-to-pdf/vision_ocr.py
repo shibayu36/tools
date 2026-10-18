@@ -8,7 +8,11 @@
 # ///
 """macOS標準のVisionフレームワークでOCRし、PDFにテキストレイヤーを付与する。
 
-使い方: uv run vision_ocr.py <input.pdf> <output.pdf> [sidecar.txt]
+使い方: uv run vision_ocr.py <input.pdf> <output.pdf> [sidecar.txt] [--lang ja|en]
+
+--lang で本の言語を指定する（デフォルトは ja）。日本語と英語の両方を認識対象にしたまま、
+指定した言語を優先する。英語の本を日本語優先でOCRすると、記号が全角になったり
+単語間の空白が消えたりする。
 
 sidecar.txtを指定すると、OCR結果のテキストも書き出す（ページ区切りはフォームフィード）。
 
@@ -22,6 +26,7 @@ pdftotextなどで抽出したときに文字間へ空白が入らない。
 
 from __future__ import annotations
 
+import argparse
 import logging
 import platform
 import sys
@@ -41,6 +46,12 @@ log = logging.getLogger(__name__)
 LANGUAGE_MAP = {
     "jpn": "ja-JP",
     "eng": "en-US",
+}
+
+# 本の言語 -> ocrmypdfに渡す言語の優先順（Visionには options.languages の順で渡る）
+LANGUAGE_PRIORITY = {
+    "ja": ["jpn", "eng"],
+    "en": ["eng", "jpn"],
 }
 
 
@@ -142,23 +153,24 @@ def get_ocr_engine(options: OcrOptions | None) -> OcrEngine:
     return VisionOcrEngine()
 
 
-def main(argv: list[str]) -> int:
-    if len(argv) not in (3, 4):
-        print(f"Usage: {argv[0]} <input.pdf> <output.pdf> [sidecar.txt]", file=sys.stderr)
-        return 1
-    input_pdf, output_pdf = Path(argv[1]), Path(argv[2])
-    sidecar = Path(argv[3]) if len(argv) == 4 else None
+def main() -> int:
+    parser = argparse.ArgumentParser(description="VisionでOCRし、PDFにテキストレイヤーを付与する")
+    parser.add_argument("input_pdf", type=Path)
+    parser.add_argument("output_pdf", type=Path)
+    parser.add_argument("sidecar", type=Path, nargs="?")
+    parser.add_argument("--lang", choices=LANGUAGE_PRIORITY, default="ja")
+    args = parser.parse_args()
 
     try:
         # --output-type pdf: PDF/A変換で画像が再エンコードされ画質が変わるのを避ける
         exit_code = ocrmypdf.ocr(
-            input_pdf,
-            output_pdf,
-            language=list(LANGUAGE_MAP),
+            args.input_pdf,
+            args.output_pdf,
+            language=LANGUAGE_PRIORITY[args.lang],
             output_type="pdf",
             skip_text=True,
             plugins=[Path(__file__)],
-            sidecar=sidecar,
+            sidecar=args.sidecar,
         )
     except ExitCodeException as e:
         print(f"vision_ocr: {type(e).__name__}: {e}", file=sys.stderr)
@@ -167,4 +179,4 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(main())
