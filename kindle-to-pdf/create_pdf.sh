@@ -19,14 +19,15 @@ convert_to_pdf() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# PDFにOCRでテキストレイヤーを付与する関数
-# 使用方法: add_ocr <input_pdf> <output_pdf>
+# PDFにOCRでテキストレイヤーを付与し、OCR結果のテキストも書き出す関数
+# 使用方法: add_ocr <input_pdf> <output_pdf> <sidecar_txt>
 # OCRエンジンはmacOS標準のVision（言語設定は vision_ocr.py 側）
 add_ocr() {
     local input_pdf="$1"
     local output_pdf="$2"
+    local sidecar_txt="$3"
 
-    uv run "$SCRIPT_DIR/vision_ocr.py" "$input_pdf" "$output_pdf"
+    uv run "$SCRIPT_DIR/vision_ocr.py" "$input_pdf" "$output_pdf" "$sidecar_txt"
 }
 
 usage() {
@@ -34,6 +35,7 @@ usage() {
     echo "  output_pdf:        Optional. Defaults to <parent_dir>/<parent_dir_name>.pdf of input_dir."
     echo "                     e.g. input_dir=~/Downloads/mybook/intermediate -> ~/Downloads/mybook/mybook.pdf"
     echo "  --ocr:             Optional. Add a searchable text layer with OCR (Japanese + English)."
+    echo "                     The OCR text is also written next to each PDF as <name>.txt."
     echo "  --pages-per-pdf N: Optional. Number of pages per PDF file."
     echo "                     If not specified, all pages will be combined into one PDF."
     exit 1
@@ -164,7 +166,7 @@ for ((i=0; i<${#PNG_FILES[@]}; i+=PAGES_PER_PDF)); do
     fi
 
     if [ "$OCR" = true ]; then
-        if ! add_ocr "$CONVERTED_FILE" "$OUTPUT_FILE"; then
+        if ! add_ocr "$CONVERTED_FILE" "$OUTPUT_FILE" "${OUTPUT_FILE%.*}.txt"; then
             echo "Error: Failed to add OCR text layer to $OUTPUT_FILE with vision_ocr.py."
             exit 1
         fi

@@ -8,7 +8,9 @@
 # ///
 """macOS標準のVisionフレームワークでOCRし、PDFにテキストレイヤーを付与する。
 
-使い方: uv run vision_ocr.py <input.pdf> <output.pdf>
+使い方: uv run vision_ocr.py <input.pdf> <output.pdf> [sidecar.txt]
+
+sidecar.txtを指定すると、OCR結果のテキストも書き出す（ページ区切りはフォームフィード）。
 
 ocrmypdfのOCRエンジンプラグインとしても動作する（このファイル自身をpluginsに渡す）。
 Visionは行単位で認識結果を返すため、1行を1つの単語(ocrx_word)として登録する。
@@ -141,10 +143,11 @@ def get_ocr_engine(options: OcrOptions | None) -> OcrEngine:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 3:
-        print(f"Usage: {argv[0]} <input.pdf> <output.pdf>", file=sys.stderr)
+    if len(argv) not in (3, 4):
+        print(f"Usage: {argv[0]} <input.pdf> <output.pdf> [sidecar.txt]", file=sys.stderr)
         return 1
     input_pdf, output_pdf = Path(argv[1]), Path(argv[2])
+    sidecar = Path(argv[3]) if len(argv) == 4 else None
 
     try:
         # --output-type pdf: PDF/A変換で画像が再エンコードされ画質が変わるのを避ける
@@ -155,6 +158,7 @@ def main(argv: list[str]) -> int:
             output_type="pdf",
             skip_text=True,
             plugins=[Path(__file__)],
+            sidecar=sidecar,
         )
     except ExitCodeException as e:
         print(f"vision_ocr: {type(e).__name__}: {e}", file=sys.stderr)
